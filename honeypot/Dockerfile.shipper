@@ -1,0 +1,14 @@
+# Log shipper image: tails Cowrie's JSON log and uploads to the Logs Ingestion API.
+# Build context is the repository root (see docker-compose.yml).
+FROM python:3.11-slim
+
+RUN useradd --create-home --uid 10001 shipper
+WORKDIR /app
+RUN pip install --no-cache-dir azure-identity azure-monitor-ingestion python-dotenv
+COPY ingestion/ ingestion/
+# Named volumes inherit this ownership on first mount, so the non-root user can write its checkpoint.
+RUN mkdir -p /state && chown shipper:shipper /state
+
+USER shipper
+ENTRYPOINT []
+CMD ["python", "-m", "ingestion.ship_logs"]

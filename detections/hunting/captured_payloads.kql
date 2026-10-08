@@ -1,0 +1,8 @@
+// Files the honeypot captured, by hash - pivot these to VirusTotal / MalwareBazaar
+Cowrie_CL
+| where eventid in ("cowrie.session.file_download", "cowrie.session.file_upload")
+| where isnotempty(shasum)
+| summarize Downloads = count(), Urls = make_set(url, 10), SourceIPs = make_set(src_ip, 10),
+            FirstSeen = min(TimeGenerated), LastSeen = max(TimeGenerated)
+    by shasum
+| order by Downloads desc

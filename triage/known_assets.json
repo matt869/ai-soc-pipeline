@@ -1,0 +1,20 @@
+{
+  "_comment": "Asset inventory used by triage/enrich.py. Keys are IPs or CIDRs. Anything here is context for the analyst, not an allowlist: the triage agent still judges the activity.",
+  "10.0.0.4": {
+    "name": "hp-eastus-01",
+    "role": "Cowrie honeypot sensor (this sensor)",
+    "owner": "SOC engineering"
+  },
+  "10.0.0.5": {
+    "name": "soc-jumpbox-01",
+    "role": "SOC admin jumpbox",
+    "owner": "SOC engineering",
+    "expected_activity": "Operators log in to the honeypot with the 'honeypot-validate' test account during business hours to verify logging (curl to an IP-echo service, writing a test file under /tmp)."
+  },
+  "10.0.0.20": {
+    "name": "nessus-scan-01",
+    "role": "Tenable Nessus vulnerability scanner",
+    "owner": "Vulnerability management",
+    "expected_activity": "Authorized weekly scan, Sundays around 02:00 UTC, including a default-credential SSH check against every host in 10.0.0.0/24. Never logs in successfully to the honeypot."
+  }
+}

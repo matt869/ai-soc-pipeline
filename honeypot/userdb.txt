@@ -1,0 +1,14 @@
+# Cowrie credential database: user:uid:password. "!" denies a password, "*" accepts anything.
+# Rules are evaluated top to bottom; the first match wins.
+#
+# Root accepts a short list of weak passwords so bots get a shell and reveal their
+# payloads, but not every guess - accepting everything is a well-known honeypot tell.
+root:x:!root
+root:x:!123456
+root:x:admin123
+root:x:1qaz2wsx
+root:x:P@ssw0rd
+root:x:honeypot-validate
+admin:x:admin
+ubuntu:x:ubuntu
+pi:x:raspberry

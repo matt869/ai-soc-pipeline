@@ -1,0 +1,171 @@
+{
+  "version": "Notebook/1.0",
+  "items": [
+    {
+      "type": 1,
+      "content": {
+        "json": "# Cowrie Honeypot Overview\nUnsolicited SSH/Telnet activity against the decoy sensor, shipped by `ingestion/ship_logs.py` into `Cowrie_CL`."
+      }
+    },
+    {
+      "type": 9,
+      "content": {
+        "version": "KqlParameterItem/1.0",
+        "parameters": [
+          {
+            "id": "5a0e3f86-7c43-4b7a-9d55-1f2e9c6d1a01",
+            "version": "KqlParameterItem/1.0",
+            "name": "TimeRange",
+            "type": 4,
+            "isRequired": true,
+            "value": {
+              "durationMs": 604800000
+            },
+            "typeSettings": {
+              "selectableValues": [
+                {
+                  "durationMs": 3600000
+                },
+                {
+                  "durationMs": 86400000
+                },
+                {
+                  "durationMs": 604800000
+                },
+                {
+                  "durationMs": 2592000000
+                }
+              ]
+            },
+            "label": "Time range"
+          }
+        ],
+        "style": "pills",
+        "queryType": 0,
+        "resourceType": "microsoft.operationalinsights/workspaces"
+      }
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "Cowrie_CL\n| summarize Events = count(), SourceIPs = dcount(src_ip), Sessions = dcount(session),\n            FailedLogins = countif(eventid == \"cowrie.login.failed\"), SuccessfulLogins = countif(eventid == \"cowrie.login.success\"),\n            Commands = countif(eventid == \"cowrie.command.input\"), Downloads = countif(eventid == \"cowrie.session.file_download\")\n| evaluate narrow()\n| project Column, Value",
+        "size": 4,
+        "title": "Activity summary",
+        "timeContextFromParameter": "TimeRange",
+        "queryType": 0,
+        "resourceType": "microsoft.operationalinsights/workspaces",
+        "visualization": "tiles",
+        "tileSettings": {
+          "showBorder": false,
+          "titleContent": {
+            "columnMatch": "Column",
+            "formatter": 1
+          },
+          "leftContent": {
+            "columnMatch": "Value",
+            "formatter": 12
+          }
+        }
+      }
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "Cowrie_CL\n| summarize count() by eventid, bin(TimeGenerated, 1h)",
+        "size": 0,
+        "title": "Events over time by type",
+        "timeContextFromParameter": "TimeRange",
+        "queryType": 0,
+        "resourceType": "microsoft.operationalinsights/workspaces",
+        "visualization": "timechart"
+      }
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "Cowrie_CL\n| summarize Events = count(), FailedLogins = countif(eventid == \"cowrie.login.failed\"),\n            LoggedIn = countif(eventid == \"cowrie.login.success\") > 0, Commands = countif(eventid == \"cowrie.command.input\") by src_ip\n| top 20 by Events",
+        "size": 0,
+        "title": "Top source IPs",
+        "timeContextFromParameter": "TimeRange",
+        "queryType": 0,
+        "resourceType": "microsoft.operationalinsights/workspaces",
+        "visualization": "table"
+      },
+      "customWidth": "50"
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "Cowrie_CL\n| where eventid == \"cowrie.session.connect\"\n| extend Country = tostring(geo_info_from_ip_address(src_ip).country)\n| summarize Connections = count(), SourceIPs = dcount(src_ip) by Country\n| top 15 by Connections",
+        "size": 0,
+        "title": "Attacker origin (country)",
+        "timeContextFromParameter": "TimeRange",
+        "queryType": 0,
+        "resourceType": "microsoft.operationalinsights/workspaces",
+        "visualization": "barchart"
+      },
+      "customWidth": "50"
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "Cowrie_CL\n| where eventid in (\"cowrie.login.failed\", \"cowrie.login.success\")\n| summarize Attempts = count(), Worked = countif(eventid == \"cowrie.login.success\") by username, password\n| top 20 by Attempts",
+        "size": 0,
+        "title": "Most-tried credentials",
+        "timeContextFromParameter": "TimeRange",
+        "queryType": 0,
+        "resourceType": "microsoft.operationalinsights/workspaces",
+        "visualization": "table"
+      },
+      "customWidth": "50"
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "Cowrie_CL\n| where eventid == \"cowrie.command.input\"\n| summarize Sessions = dcount(session), SourceIPs = dcount(src_ip) by input\n| top 20 by Sessions",
+        "size": 0,
+        "title": "Most common commands",
+        "timeContextFromParameter": "TimeRange",
+        "queryType": 0,
+        "resourceType": "microsoft.operationalinsights/workspaces",
+        "visualization": "table"
+      },
+      "customWidth": "50"
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "Cowrie_CL\n| where eventid == \"cowrie.session.file_download\" and isnotempty(shasum)\n| summarize Downloads = count(), SourceIPs = dcount(src_ip), Urls = make_set(url, 5), LastSeen = max(TimeGenerated) by shasum\n| order by Downloads desc",
+        "size": 0,
+        "title": "Captured payloads",
+        "timeContextFromParameter": "TimeRange",
+        "queryType": 0,
+        "resourceType": "microsoft.operationalinsights/workspaces",
+        "visualization": "table"
+      }
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "SecurityAlert\n| where AlertName startswith \"Cowrie - \"\n| summarize Alerts = count() by AlertName, AlertSeverity\n| order by Alerts desc",
+        "size": 0,
+        "title": "Detections fired (Sentinel alerts)",
+        "timeContextFromParameter": "TimeRange",
+        "queryType": 0,
+        "resourceType": "microsoft.operationalinsights/workspaces",
+        "visualization": "table"
+      }
+    }
+  ],
+  "isLocked": false,
+  "fallbackResourceIds": [],
+  "fromTemplateId": "sentinel-UserWorkbook"
+}

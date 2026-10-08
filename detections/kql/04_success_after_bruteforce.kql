@@ -1,0 +1,20 @@
+// name: Successful login after brute force
+// severity: High
+// tactics: CredentialAccess, InitialAccess
+// techniques: T1110.001, T1078
+// frequency: PT1H
+// period: PT1H
+// description: A source IP logged in successfully after 5 or more failed attempts in the query window.
+let failures = Cowrie_CL
+    | where eventid == "cowrie.login.failed"
+    | summarize FailedAttempts = count(), FirstFailure = min(TimeGenerated) by src_ip;
+Cowrie_CL
+| where eventid == "cowrie.login.success"
+| join kind=inner failures on src_ip
+| where FailedAttempts >= 5 and FirstFailure < TimeGenerated
+| summarize FirstSeen = min(TimeGenerated),
+            LastSeen = max(TimeGenerated),
+            Username = any(username),
+            Password = any(password),
+            FailedAttempts = max(FailedAttempts)
+    by src_ip, session

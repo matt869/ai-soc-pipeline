@@ -1,0 +1,43 @@
+name: ci
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - run: pip install -r requirements.txt
+      - name: Unit tests
+        run: python -m pytest -q
+      - name: Offline pipeline smoke run
+        run: |
+          python -m honeypot.simulate_attacks
+          python -m ingestion.ship_logs --log-file data/raw/cowrie_simulated.json --once --dry-run
+          python -m detections.local_rules data/processed/cowrie_rows.jsonl -o data/processed/alerts.jsonl
+          python -m triage.iocs --events data/raw/cowrie_simulated.json
+          python -m triage.triage_agent --events data/raw/cowrie_simulated.json --no-intel --dry-run > /dev/null
+          python -m evaluation.evaluate --baseline-only > /dev/null
+
+  powershell:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Parse deployment scripts
+        shell: pwsh
+        run: |
+          $failed = $false
+          foreach ($f in Get-ChildItem -Recurse -Filter *.ps1) {
+            $tokens = $null; $errors = $null
+            [void][System.Management.Automation.Language.Parser]::ParseFile($f.FullName, [ref]$tokens, [ref]$errors)
+            if ($errors) { $failed = $true; $errors | ForEach-Object { "$($f.Name):$($_.Extent.StartLineNumber) $($_.Message)" } }
+          }
+          if ($failed) { exit 1 }
+      - name: Validate JSON templates
+        run: for f in siem/infra/*.json siem/workbooks/*.json; do python -m json.tool "$f" > /dev/null || exit 1; done

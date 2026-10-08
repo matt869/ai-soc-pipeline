@@ -1,0 +1,169 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "metadata": {
+    "description": "Data collection endpoint + rule that accept Cowrie events on the Logs Ingestion API and write them to the Cowrie_CL table."
+  },
+  "parameters": {
+    "location": {
+      "type": "string",
+      "defaultValue": "[resourceGroup().location]"
+    },
+    "workspaceResourceId": {
+      "type": "string",
+      "metadata": {
+        "description": "Resource ID of the Log Analytics workspace (Sentinel-enabled) that holds Cowrie_CL."
+      }
+    },
+    "dceName": {
+      "type": "string",
+      "defaultValue": "dce-cowrie"
+    },
+    "dcrName": {
+      "type": "string",
+      "defaultValue": "dcr-cowrie"
+    }
+  },
+  "resources": [
+    {
+      "type": "Microsoft.Insights/dataCollectionEndpoints",
+      "apiVersion": "2023-03-11",
+      "name": "[parameters('dceName')]",
+      "location": "[parameters('location')]",
+      "properties": {
+        "networkAcls": {
+          "publicNetworkAccess": "Enabled"
+        }
+      }
+    },
+    {
+      "type": "Microsoft.Insights/dataCollectionRules",
+      "apiVersion": "2023-03-11",
+      "name": "[parameters('dcrName')]",
+      "location": "[parameters('location')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Insights/dataCollectionEndpoints', parameters('dceName'))]"
+      ],
+      "properties": {
+        "description": "Cowrie honeypot events from ingestion/ship_logs.py",
+        "dataCollectionEndpointId": "[resourceId('Microsoft.Insights/dataCollectionEndpoints', parameters('dceName'))]",
+        "streamDeclarations": {
+          "Custom-Cowrie_CL": {
+            "columns": [
+              {
+                "name": "TimeGenerated",
+                "type": "datetime"
+              },
+              {
+                "name": "eventid",
+                "type": "string"
+              },
+              {
+                "name": "session",
+                "type": "string"
+              },
+              {
+                "name": "src_ip",
+                "type": "string"
+              },
+              {
+                "name": "src_port",
+                "type": "int"
+              },
+              {
+                "name": "dst_ip",
+                "type": "string"
+              },
+              {
+                "name": "dst_port",
+                "type": "int"
+              },
+              {
+                "name": "sensor",
+                "type": "string"
+              },
+              {
+                "name": "protocol",
+                "type": "string"
+              },
+              {
+                "name": "username",
+                "type": "string"
+              },
+              {
+                "name": "password",
+                "type": "string"
+              },
+              {
+                "name": "input",
+                "type": "string"
+              },
+              {
+                "name": "url",
+                "type": "string"
+              },
+              {
+                "name": "outfile",
+                "type": "string"
+              },
+              {
+                "name": "shasum",
+                "type": "string"
+              },
+              {
+                "name": "duration",
+                "type": "real"
+              },
+              {
+                "name": "client_version",
+                "type": "string"
+              },
+              {
+                "name": "hassh",
+                "type": "string"
+              },
+              {
+                "name": "message",
+                "type": "string"
+              }
+            ]
+          }
+        },
+        "destinations": {
+          "logAnalytics": [
+            {
+              "workspaceResourceId": "[parameters('workspaceResourceId')]",
+              "name": "sentinelWorkspace"
+            }
+          ]
+        },
+        "dataFlows": [
+          {
+            "streams": [
+              "Custom-Cowrie_CL"
+            ],
+            "destinations": [
+              "sentinelWorkspace"
+            ],
+            "transformKql": "source | where isnotempty(eventid)",
+            "outputStream": "Custom-Cowrie_CL"
+          }
+        ]
+      }
+    }
+  ],
+  "outputs": {
+    "logsIngestionEndpoint": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.Insights/dataCollectionEndpoints', parameters('dceName')), '2023-03-11').logsIngestion.endpoint]"
+    },
+    "dcrImmutableId": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.Insights/dataCollectionRules', parameters('dcrName')), '2023-03-11').immutableId]"
+    },
+    "dcrResourceId": {
+      "type": "string",
+      "value": "[resourceId('Microsoft.Insights/dataCollectionRules', parameters('dcrName'))]"
+    }
+  }
+}

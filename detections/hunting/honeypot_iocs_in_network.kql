@@ -1,0 +1,24 @@
+// Infrastructure first seen on the honeypot, now showing up in PRODUCTION network telemetry.
+// Needs the CowrieIOCs watchlist: python -m triage.iocs --events <log> --upload-watchlist
+// Any hit means something inside the network talked to (or was hit by) an address,
+// domain or URL that attacked the decoy - investigate the internal host first.
+let iocs = _GetWatchlist('CowrieIOCs') | project Indicator = tostring(SearchKey), Type = tostring(Type);
+let ips = toscalar(iocs | where Type in ("attacker_ip", "c2_ip") | summarize make_set(Indicator));
+let hosts = toscalar(iocs | where Type in ("domain", "mining_pool")
+    | extend Host = tostring(split(Indicator, ":")[0]) | summarize make_set(Host));
+let urls = toscalar(iocs | where Type == "url" | summarize make_set(Indicator));
+union isfuzzy=true
+    (CommonSecurityLog
+        | where DestinationIP in (ips) or SourceIP in (ips) or RequestURL has_any (hosts) or RequestURL in (urls)
+        | project TimeGenerated, Source = "CommonSecurityLog", Device = DeviceName, LocalIP = SourceIP,
+                  RemoteIP = DestinationIP, Url = RequestURL, Action = DeviceAction),
+    (DeviceNetworkEvents
+        | where RemoteIP in (ips) or RemoteUrl has_any (hosts)
+        | project TimeGenerated, Source = "DeviceNetworkEvents", Device = DeviceName, LocalIP = LocalIP,
+                  RemoteIP, Url = RemoteUrl, Action = ActionType),
+    (AzureNetworkAnalytics_CL
+        | where SrcIP_s in (ips) or DestIP_s in (ips)
+        | project TimeGenerated, Source = "NSG flow logs", Device = "", LocalIP = DestIP_s,
+                  RemoteIP = SrcIP_s, Url = "", Action = FlowStatus_s)
+| join kind=leftouter (iocs) on $left.RemoteIP == $right.Indicator
+| order by TimeGenerated desc

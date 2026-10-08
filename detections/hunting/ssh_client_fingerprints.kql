@@ -1,0 +1,8 @@
+// Group attackers by SSH client fingerprint (HASSH) - the same tooling often spans many IPs
+Cowrie_CL
+| where eventid == "cowrie.client.kex" and isnotempty(hassh)
+| join kind=leftouter (
+    Cowrie_CL | where eventid == "cowrie.client.version" | project session, client_version
+  ) on session
+| summarize SourceIPs = dcount(src_ip), Sessions = dcount(session), ClientVersions = make_set(client_version1, 5) by hassh
+| order by SourceIPs desc

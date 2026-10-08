@@ -1,0 +1,32 @@
+#cloud-config
+# Honeypot VM bootstrap (Ubuntu 24.04). Used by deploy-vm.ps1 via --custom-data.
+#  - Moves the real sshd to port 22222 so Cowrie can own port 22.
+#  - Installs Docker; the repo is copied over and started by deploy-vm.ps1's printed steps.
+package_update: true
+package_upgrade: true
+packages:
+  - docker.io
+  - docker-compose-v2
+  - unattended-upgrades
+
+write_files:
+  - path: /etc/ssh/sshd_config.d/10-admin-port.conf
+    content: |
+      Port 22222
+      PasswordAuthentication no
+      PermitRootLogin no
+  # Ubuntu 24.04 uses socket activation for ssh; move the socket too.
+  - path: /etc/systemd/system/ssh.socket.d/10-admin-port.conf
+    content: |
+      [Socket]
+      ListenStream=
+      ListenStream=0.0.0.0:22222
+      ListenStream=[::]:22222
+
+runcmd:
+  - systemctl daemon-reload
+  - systemctl restart ssh.socket || true
+  - systemctl restart ssh || systemctl restart sshd
+  - usermod -aG docker azureuser
+  - systemctl enable --now docker
+  - mkdir -p /opt/ai-soc-pipeline && chown azureuser:azureuser /opt/ai-soc-pipeline

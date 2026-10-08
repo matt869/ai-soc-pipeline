@@ -1,0 +1,20 @@
+# Triage agent
+anthropic>=1.11.0
+pydantic>=2.7
+
+# Enrichment (AbuseIPDB / GreyNoise)
+requests>=2.31
+
+# Azure: log shipping (Logs Ingestion API) and querying Sentinel / Log Analytics
+azure-identity>=1.17
+azure-monitor-ingestion>=1.0.4
+azure-monitor-query>=1.4
+
+# Config
+python-dotenv>=1.0
+
+# Tests
+pytest>=8.0
+
+# Optional: honeypot/smoke_test.py (attacks your own sensor over SSH)
+paramiko>=3.4

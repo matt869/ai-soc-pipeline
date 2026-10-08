@@ -1,0 +1,16 @@
+// name: SSH brute force
+// severity: Medium
+// tactics: CredentialAccess
+// techniques: T1110.001
+// frequency: PT10M
+// period: PT10M
+// description: More than 20 failed SSH/Telnet logins from one source IP in a 10-minute bin.
+Cowrie_CL
+| where eventid == "cowrie.login.failed"
+| summarize Attempts = count(),
+            DistinctUsers = dcount(username),
+            SampleUsers = make_set(username, 10),
+            FirstSeen = min(TimeGenerated),
+            LastSeen = max(TimeGenerated)
+    by src_ip, Window = bin(TimeGenerated, 10m)
+| where Attempts > 20

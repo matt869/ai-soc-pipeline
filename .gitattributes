@@ -1,0 +1,5 @@
+# Keep LF everywhere: honeypot config, userdb and scripts are copied to a Linux VM,
+# where CRLF would e.g. append \r to every userdb password.
+* text=auto eol=lf
+*.ps1 text eol=crlf
+*.png binary

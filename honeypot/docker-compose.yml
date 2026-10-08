@@ -1,0 +1,50 @@
+# Cowrie honeypot + log shipper.
+#
+# On the honeypot VM (real sshd moved to 22222 by cloud-init.yaml):
+#   cp ../.env.example ../.env   # fill in AZURE_DCE_ENDPOINT / AZURE_DCR_IMMUTABLE_ID
+#   docker compose up -d --build
+#
+# Locally (no root needed, sensor on port 2222, shipper writes to disk):
+#   HONEYPOT_PORT=2222 SHIPPER_DRY_RUN=1 docker compose up --build
+#   docker compose exec shipper tail -f /state/cowrie_rows.jsonl
+name: ai-soc-honeypot
+
+services:
+  cowrie:
+    image: cowrie/cowrie:latest
+    restart: unless-stopped
+    ports:
+      # Docker publishes ports with iptables DNAT, so Cowrie sees the attacker's real source IP.
+      - "${HONEYPOT_PORT:-22}:2222"
+    volumes:
+      - ./cowrie.cfg:/cowrie/cowrie-git/etc/cowrie.cfg:ro
+      - ./userdb.txt:/cowrie/cowrie-git/etc/userdb.txt:ro
+      - cowrie-var:/cowrie/cowrie-git/var
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    mem_limit: 512m
+    pids_limit: 256
+
+  shipper:
+    build:
+      context: ..
+      dockerfile: honeypot/Dockerfile.shipper
+    restart: unless-stopped
+    depends_on: [cowrie]
+    env_file:
+      - path: ../.env
+        required: false
+    environment:
+      COWRIE_LOG_PATH: /cowrie-var/log/cowrie/cowrie.json
+      SHIPPER_STATE_FILE: /state/ship_logs.json
+      SHIPPER_DRY_RUN: ${SHIPPER_DRY_RUN:-0}
+      SHIPPER_DRY_RUN_OUT: /state/cowrie_rows.jsonl
+    volumes:
+      - cowrie-var:/cowrie-var:ro
+      - shipper-state:/state
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+
+volumes:
+  cowrie-var:
+  shipper-state:

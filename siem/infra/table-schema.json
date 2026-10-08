@@ -1,0 +1,89 @@
+{
+  "properties": {
+    "schema": {
+      "name": "Cowrie_CL",
+      "description": "Cowrie honeypot events shipped by ingestion/ship_logs.py",
+      "columns": [
+        {
+          "name": "TimeGenerated",
+          "type": "datetime"
+        },
+        {
+          "name": "eventid",
+          "type": "string"
+        },
+        {
+          "name": "session",
+          "type": "string"
+        },
+        {
+          "name": "src_ip",
+          "type": "string"
+        },
+        {
+          "name": "src_port",
+          "type": "int"
+        },
+        {
+          "name": "dst_ip",
+          "type": "string"
+        },
+        {
+          "name": "dst_port",
+          "type": "int"
+        },
+        {
+          "name": "sensor",
+          "type": "string"
+        },
+        {
+          "name": "protocol",
+          "type": "string"
+        },
+        {
+          "name": "username",
+          "type": "string"
+        },
+        {
+          "name": "password",
+          "type": "string"
+        },
+        {
+          "name": "input",
+          "type": "string"
+        },
+        {
+          "name": "url",
+          "type": "string"
+        },
+        {
+          "name": "outfile",
+          "type": "string"
+        },
+        {
+          "name": "shasum",
+          "type": "string"
+        },
+        {
+          "name": "duration",
+          "type": "real"
+        },
+        {
+          "name": "client_version",
+          "type": "string"
+        },
+        {
+          "name": "hassh",
+          "type": "string"
+        },
+        {
+          "name": "message",
+          "type": "string"
+        }
+      ]
+    },
+    "retentionInDays": 90,
+    "totalRetentionInDays": 365,
+    "plan": "Analytics"
+  }
+}

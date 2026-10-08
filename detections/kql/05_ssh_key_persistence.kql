@@ -1,0 +1,14 @@
+// name: SSH authorized_keys modification
+// severity: High
+// tactics: Persistence
+// techniques: T1098.004
+// frequency: PT10M
+// period: PT10M
+// description: A session wrote to or altered ~/.ssh/authorized_keys to keep access.
+Cowrie_CL
+| where eventid == "cowrie.command.input"
+| where input contains "authorized_keys"
+| summarize Commands = make_list(input, 25),
+            FirstSeen = min(TimeGenerated),
+            LastSeen = max(TimeGenerated)
+    by src_ip, session

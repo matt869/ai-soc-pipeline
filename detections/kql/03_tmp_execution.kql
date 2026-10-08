@@ -1,0 +1,15 @@
+// name: Execution from world-writable directory
+// severity: High
+// tactics: Execution, DefenseEvasion
+// techniques: T1059.004, T1222.002
+// frequency: PT10M
+// period: PT10M
+// description: A session made a file executable (chmod) in /tmp, /var/tmp or /dev/shm - the usual dropper pattern.
+Cowrie_CL
+| where eventid == "cowrie.command.input"
+| where input has "chmod"
+| where input contains "/tmp" or input contains "/var/tmp" or input contains "/dev/shm"
+| summarize Commands = make_list(input, 25),
+            FirstSeen = min(TimeGenerated),
+            LastSeen = max(TimeGenerated)
+    by src_ip, session

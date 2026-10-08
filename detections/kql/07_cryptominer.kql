@@ -1,0 +1,16 @@
+// name: Cryptominer deployment
+// severity: High
+// tactics: Impact
+// techniques: T1496
+// frequency: PT10M
+// period: PT10M
+// description: Commands reference a known miner binary or mining-pool protocol (xmrig, stratum+tcp...).
+Cowrie_CL
+| where eventid == "cowrie.command.input"
+| where input contains "xmrig" or input contains "minerd" or input contains "cpuminer"
+     or input contains "stratum+tcp" or input contains "stratum+ssl" or input contains "donate-level"
+     or input contains "c3pool" or input contains "moneroocean" or input contains "nanopool"
+| summarize Commands = make_list(input, 25),
+            FirstSeen = min(TimeGenerated),
+            LastSeen = max(TimeGenerated)
+    by src_ip, session

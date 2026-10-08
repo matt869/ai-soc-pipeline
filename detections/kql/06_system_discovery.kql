@@ -1,0 +1,17 @@
+// name: Host reconnaissance burst
+// severity: Low
+// tactics: Discovery
+// techniques: T1082, T1033
+// frequency: PT10M
+// period: PT10M
+// description: A session ran 3 or more distinct system-discovery commands (uname, cpuinfo, nproc, whoami...).
+let recon = dynamic(["uname", "cpuinfo", "meminfo", "nproc", "lscpu", "lspci", "whoami", "hostname", "uptime", "ifconfig", "crontab", "netstat", "getconf", "dmidecode"]);
+Cowrie_CL
+| where eventid == "cowrie.command.input"
+| mv-apply Indicator = recon to typeof(string) on (where input has Indicator)
+| summarize Indicators = make_set(Indicator),
+            Commands = make_set(input, 25),
+            FirstSeen = min(TimeGenerated),
+            LastSeen = max(TimeGenerated)
+    by src_ip, session
+| where array_length(Indicators) >= 3

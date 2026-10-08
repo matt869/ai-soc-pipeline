@@ -1,0 +1,5 @@
+// Most common post-login commands, grouped across sessions
+Cowrie_CL
+| where eventid == "cowrie.command.input"
+| summarize Sessions = dcount(session), SourceIPs = dcount(src_ip), LastSeen = max(TimeGenerated) by input
+| top 50 by Sessions
