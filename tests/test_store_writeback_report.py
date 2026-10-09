@@ -2,7 +2,7 @@ import pytest
 
 from triage.report import render
 from triage.store import Store
-from triage.writeback import SentinelWriter, format_comment
+from triage.writeback import SentinelWriter
 
 ALERT = {"alert_id": "02-abc", "rule_id": "02_download_command", "rule_name": "Payload download command",
          "src_ip": "203.0.113.5", "first_seen": "2026-09-01T10:00:00.000000Z", "last_seen": "2026-09-01T10:01:00.000000Z",

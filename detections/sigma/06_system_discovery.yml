@@ -1,0 +1,44 @@
+title: Cowrie reconnaissance command
+id: 270efc60-8709-50ec-9078-c179f0214ac3
+name: cowrie_recon_command
+status: experimental
+description: A command that fingerprints the host (uname, cpuinfo, nproc, whoami...). Building block for the burst correlation.
+author: matt869
+date: 2026-10-09
+logsource:
+    product: cowrie
+    service: ssh
+detection:
+    selection_event:
+        eventid: cowrie.command.input
+    selection_recon:
+        input|re: '(^|[^A-Za-z0-9])(uname|cpuinfo|meminfo|nproc|lscpu|lspci|whoami|hostname|uptime|ifconfig|crontab|netstat|getconf|dmidecode)([^A-Za-z0-9]|$)'
+    condition: all of selection_*
+level: informational
+---
+title: Host reconnaissance burst
+id: a7380013-bd57-50f9-b3cb-219a3f7445d0
+status: experimental
+description: >-
+    A session ran 3 or more distinct reconnaissance commands. Mirrors detections/kql/06_system_discovery.kql,
+    approximately: the KQL counts distinct indicator words, this counts distinct matching command lines.
+author: matt869
+date: 2026-10-09
+tags:
+    - attack.discovery
+    - attack.t1082
+    - attack.t1033
+correlation:
+    type: value_count
+    rules:
+        - cowrie_recon_command
+    group-by:
+        - session
+        - src_ip
+    timespan: 10m
+    condition:
+        field: input
+        gte: 3
+falsepositives:
+    - Operators checking the sensor's fake system information
+level: low

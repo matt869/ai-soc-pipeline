@@ -9,7 +9,7 @@ DefaultAzureCredential (az login, managed identity, or service-principal env var
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from detections.local_rules import build_alert
@@ -38,13 +38,13 @@ def _rows(result) -> list[dict[str, Any]]:
     for table in tables:
         columns = list(table.columns)
         for row in table.rows:
-            rows.append(dict(zip(columns, row)))
+            rows.append(dict(zip(columns, row, strict=True)))
     return rows
 
 
 def _iso(value: Any) -> str | None:
     if isinstance(value, datetime):
-        return value.astimezone(timezone.utc).isoformat(timespec="microseconds").replace("+00:00", "Z")
+        return value.astimezone(UTC).isoformat(timespec="microseconds").replace("+00:00", "Z")
     return value
 
 
@@ -68,7 +68,8 @@ class SentinelEventSource:
 
     def events_for_ip(self, ip: str, start: datetime, end: datetime) -> list[dict[str, Any]]:
         safe_ip = ip.replace('"', "")
-        kql = f'Cowrie_CL | where src_ip == "{safe_ip}" | project {", ".join(COLUMNS)} | order by TimeGenerated asc | take 2000'
+        kql = (f'Cowrie_CL | where src_ip == "{safe_ip}" | project {", ".join(COLUMNS)} '
+               "| order by TimeGenerated asc | take 2000")
         return [{k: _jsonable(v) for k, v in row.items()} for row in self.query(kql, (start, end))]
 
     def run_detections(self, lookback: timedelta, rule_ids: list[str] | None = None) -> list[dict[str, Any]]:

@@ -22,9 +22,10 @@ import os
 import signal
 import sys
 import time
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any
 
 from dotenv import load_dotenv
 
@@ -41,7 +42,7 @@ class Checkpoint:
     offset: int = 0
 
     @classmethod
-    def load(cls, path: Path) -> "Checkpoint":
+    def load(cls, path: Path) -> Checkpoint:
         try:
             data = json.loads(path.read_text(encoding="utf-8"))
             return cls(inode=data.get("inode"), offset=int(data.get("offset", 0)))
@@ -185,7 +186,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("-v", "--verbose", action="store_true")
     args = parser.parse_args(argv)
 
-    logging.basicConfig(level=logging.DEBUG if args.verbose else logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
+    logging.basicConfig(level=logging.DEBUG if args.verbose else logging.INFO,
+                        format="%(asctime)s %(levelname)s %(message)s")
 
     if args.dry_run:
         send = make_file_sender(Path(args.dry_run_out))

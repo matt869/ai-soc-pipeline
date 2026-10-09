@@ -13,8 +13,11 @@ azure-monitor-query>=1.4
 # Config
 python-dotenv>=1.0
 
-# Tests
+# Tests and lint (Sigma rules are validated with pySigma)
 pytest>=8.0
+pyyaml>=6.0
+pysigma>=0.11
+ruff>=0.6
 
 # Optional: honeypot/smoke_test.py (attacks your own sensor over SSH)
 paramiko>=3.4

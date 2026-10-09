@@ -12,6 +12,7 @@ A [Cowrie](https://github.com/cowrie/cowrie) SSH honeypot on a small Azure VM, p
 | [deploy-vm.ps1](deploy-vm.ps1) | Creates the VM, NSG and managed identity |
 | [simulate_attacks.py](simulate_attacks.py) | Synthetic Cowrie logs with ground-truth labels, for testing without a live sensor |
 | [smoke_test.py](smoke_test.py) | Scripted intrusion against your own sensor, to verify sensor → shipper → detections |
+| [Dockerfile.triage](Dockerfile.triage) | Continuous triage image (compose profile `triage`), running as the cowrie uid so it can read captured payloads |
 
 ## Deploy to Azure
 
@@ -49,6 +50,16 @@ python -m detections.local_rules data/processed/live_rows.jsonl    # expect rule
 With Docker Desktop (Windows/macOS), connections from your own machine show up as the Docker gateway (`172.x.0.1`), not your IP. On a Linux VM, published ports use iptables DNAT, so Cowrie sees the real attacker address. In Git Bash, prefix `docker compose exec` commands with `MSYS_NO_PATHCONV=1` so `/state/...` is not rewritten to a Windows path.
 
 Stop the stack when you're done (`docker compose ... down`). It listens on all interfaces.
+
+Cowrie's fake `wget`/`curl` refuse private and local addresses, so the sensor can't be used to reach your network. As a result, payload capture can't be tested against a server on your own machine.
+
+## Captured payloads
+
+```bash
+python -m triage.payloads /var/lib/docker/volumes/ai-soc-honeypot_cowrie-var/_data/lib/cowrie/downloads --lookup
+```
+
+Every file is identified by its header (ELF architecture/bitness/endianness, script interpreter, archive type) and scanned for UPX packing, family hints (Mirai-style busybox/watchdog handling, miners, SSH-key or cron persistence, log wiping, DDoS routines) and IOCs embedded in its strings. With `MALWAREBAZAAR_API_KEY` / `VT_API_KEY` set, it also gets a hash reputation lookup. The triage agent includes this analysis for every payload a case downloaded (`--payload-dir`, or `COWRIE_DOWNLOADS_DIR`). Nothing is ever executed.
 
 ## No sensor yet? Simulate one
 

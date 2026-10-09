@@ -16,7 +16,8 @@ python -m triage.triage_agent --sentinel --lookback 1h --watch 10m --writeback c
 
 - **Watch mode** re-runs the detections every interval over the lookback window. The SQLite store (`data/soc.db`) records every verdict, so an alert seen again in the next window is not paid for twice. Failed attempts (API error, refusal) are retried on the next cycle.
 - **Cases.** New alerts are grouped by source IP and shared infrastructure, and each case costs one Claude call.
-- **Host it** on the honeypot VM (systemd or a third compose service), as an Azure Container Apps job, or anywhere with network access to Azure and the Anthropic API.
+- **Host it** with `docker compose --profile triage up -d` on the honeypot VM: the service runs as the cowrie uid, so it can read captured payloads for static analysis. It also runs as an Azure Container Apps job or anywhere with network access to Azure and the Anthropic API.
+- **Daily budget.** `TRIAGE_DAILY_BUDGET_USD` (default 5 in the compose service) stops API calls once the day's estimated spend reaches the cap. Attackers control alert volume, so set a cap. Skipped alerts are stored as "needs manual review" and retried the next UTC day.
 
 It needs:
 
@@ -38,6 +39,10 @@ Each alert is matched to its incident by rule title (`Cowrie - <rule name>`), IP
 Recommended rollout: run `comment` for a few weeks and compare the comments with analyst decisions. Move to `update`, then `close`, only when the evaluation numbers ([evaluation/](../../evaluation/)) and the shadow-mode record agree. Filter on the `ai-verdict:benign` tag to audit every auto-closure.
 
 The write-back status of each alert is stored, and shown in the HTML report (`python -m triage.report`).
+
+## Analyst feedback ([triage/feedback.py](../../triage/feedback.py))
+
+When an analyst closes an incident the agent commented on, `python -m triage.feedback pull-sentinel` imports the decision: *TruePositive* → malicious, *BenignPositive*/*FalsePositive* → benign, *Undetermined* → skipped. Closures made by the agent itself (`close` mode) are never imported as human labels. `stats` reports agreement, and lists every alert the agent called benign but an analyst called hostile, which is the number that should gate `close` mode. `export` writes the labels in the evaluation format, so a prompt or model change can be scored against your own analysts' decisions before it ships.
 
 ## Guardrails
 

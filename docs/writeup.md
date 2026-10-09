@@ -63,8 +63,15 @@ What counts as success is set before the numbers come in. The agent should close
 
 The Compose stack (Cowrie 3.1.1 plus the shipper) was run locally and attacked with `honeypot/smoke_test.py`: six failed passwords, a login, reconnaissance, a payload fetch, chmod in /tmp and an SSH-key plant. The shipper normalized 47 events, and the detections raised exactly the five expected alerts (04, 06, 02, 03, 05) from the real Cowrie output, not simulated data.
 
+## Operating it for real
+
+- **Cost is attacker-controlled.** Alert volume is set by whoever is attacking the sensor, so continuous triage has a daily USD cap. Spend is persisted and costed at list prices (unknown fallback models at the most expensive known rate). Over the cap, alerts wait for the next day and show as "needs manual review".
+- **Analysts are the real ground truth.** Analyst closures of AI-triaged incidents are pulled back from Sentinel. Agreement is measured, and the labels are exported in the evaluation format, so the next prompt or model change is scored on real decisions. The agent's own auto-closures are never counted as labels.
+- **Payloads are evidence.** Captured files are identified statically (ELF architecture, UPX, Mirai/miner/persistence markers, embedded C2s) and, optionally, looked up on MalwareBazaar and VirusTotal. The model sees "a UPX-packed ARM build with busybox/watchdog strings", not just a hash.
+- **Detections are portable.** Every KQL rule has a Sigma twin (including v2 correlation rules for the count-based ones), validated with pySigma and checked against the KQL headers in CI. An ATT&CK Navigator layer shows coverage.
+
 ## What I'd build next
 
 - More sensors (Telnet, HTTP) feeding the same table, correlation and triage.
-- An analyst feedback loop: when an analyst reclassifies an AI-triaged incident, add it to the labelled dataset automatically, so the evaluation grows from real disagreements.
 - Payload detonation: send captured hashes to a sandbox and feed the behaviour report into the case enrichment.
+- Per-rule alert suppression learned from feedback: rules whose alerts analysts consistently close as benign get their thresholds reviewed.

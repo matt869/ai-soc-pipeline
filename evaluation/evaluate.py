@@ -25,23 +25,16 @@ import json
 import statistics
 import sys
 from collections import defaultdict
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
 from dotenv import load_dotenv
 
+from triage.pricing import cost_usd
+
 HERE = Path(__file__).resolve().parent
 SEVERITIES = ["informational", "low", "medium", "high", "critical"]
-
-# USD per million tokens: input, output, cache read, cache write (5-minute TTL).
-PRICES = {
-    "claude-opus-5-5": (4.00, 20.00, 0.20, 5.00),
-    "claude-sonnet-5-5": (2.00, 10.00, 0.20, 2.50),
-    "claude-opus-4-8": (5.00, 25.00, 0.50, 6.25),
-    "claude-opus-5": (5.00, 25.00, 0.50, 6.25),
-    "claude-haiku-4-5": (1.00, 5.00, 0.10, 1.25),
-}
 
 
 def load_dataset(path: Path) -> list[dict[str, Any]]:
@@ -56,7 +49,8 @@ def load_dataset(path: Path) -> list[dict[str, Any]]:
 
 def baseline_predictions(rows: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
     return {
-        r["alert_id"]: {"triage": {"verdict": "malicious", "severity": r["alert"]["rule_severity"].lower(), "escalate": True}}
+        r["alert_id"]: {"triage": {"verdict": "malicious", "severity": r["alert"]["rule_severity"].lower(),
+                                   "escalate": True}}
         for r in rows
     }
 
@@ -82,7 +76,8 @@ def score(rows: list[dict[str, Any]], preds: dict[str, dict[str, Any]]) -> dict[
     sev_exact = sev_within_one = 0
     sev_errors: list[int] = []
     scored = errors = 0
-    per_scenario: dict[str, dict[str, int]] = defaultdict(lambda: {"n": 0, "verdict_ok": 0, "severity_ok": 0, "escalate_ok": 0})
+    per_scenario: dict[str, dict[str, int]] = defaultdict(
+        lambda: {"n": 0, "verdict_ok": 0, "severity_ok": 0, "escalate_ok": 0})
     misses: list[str] = []
 
     for row in rows:
@@ -163,11 +158,7 @@ def usage_stats(preds: dict[str, dict[str, Any]]) -> dict[str, Any]:
         model = p.get("model_served") or p.get("model_requested")
         if model:
             served[model] += 1
-        price = PRICES.get(model or "")
-        if price and usage:
-            cost += (usage.get("input_tokens", 0) * price[0] + usage.get("output_tokens", 0) * price[1]
-                     + usage.get("cache_read_input_tokens", 0) * price[2]
-                     + usage.get("cache_creation_input_tokens", 0) * price[3]) / 1e6
+        cost += cost_usd(usage, model)
     lat_sorted = sorted(latencies)
     return {
         "api_calls": len({p.get("case_id") or alert_id for alert_id, p in preds.items()}),
@@ -193,7 +184,7 @@ def render_report(dataset: Path, base: dict[str, Any], agent: dict[str, Any] | N
         return f"| {label} | " + " | ".join(fn(m) for _, m in cols) + " |\n"
 
     out = [f"# Triage evaluation\n\nDataset: `{dataset.name}`, {base['alerts']} alerts. "
-           f"Generated {datetime.now(timezone.utc):%Y-%m-%d %H:%M} UTC.\n"]
+           f"Generated {datetime.now(UTC):%Y-%m-%d %H:%M} UTC.\n"]
     if predictions_path:
         out.append(f"Predictions: `{predictions_path.as_posix()}`.\n")
     out.append("\n## Verdict (hostile vs benign)\n\n" + header)
@@ -219,9 +210,11 @@ def render_report(dataset: Path, base: dict[str, Any], agent: dict[str, Any] | N
                     if m["severity"]["mean_signed_error"] is not None else "n/a"))
 
     if agent:
-        out.append("\n## LLM triage by scenario\n\n| Scenario | Alerts | Verdict correct | Escalation correct | Severity exact |\n|---|---|---|---|---|\n")
+        out.append("\n## LLM triage by scenario\n\n"
+                   "| Scenario | Alerts | Verdict correct | Escalation correct | Severity exact |\n|---|---|---|---|---|\n")
         for name, s in agent["per_scenario"].items():
-            out.append(f"| {name} | {s['n']} | {s['verdict_ok']}/{s['n']} | {s['escalate_ok']}/{s['n']} | {s['severity_ok']}/{s['n']} |\n")
+            n = s["n"]
+            out.append(f"| {name} | {n} | {s['verdict_ok']}/{n} | {s['escalate_ok']}/{n} | {s['severity_ok']}/{n} |\n")
         if usage:
             out.append("\n## Cost and latency\n\n")
             out.append(f"- API calls: {usage['api_calls']} for {agent['alerts']} alerts\n")
@@ -270,7 +263,7 @@ def main(argv: list[str] | None = None) -> int:
                     preds[record["alert_id"]] = record
         else:
             preds = run_agent(rows, args.workers, args.mode)
-            predictions_path = results_dir / f"predictions-{args.mode}-{datetime.now(timezone.utc):%Y%m%dT%H%M%SZ}.jsonl"
+            predictions_path = results_dir / f"predictions-{args.mode}-{datetime.now(UTC):%Y%m%dT%H%M%SZ}.jsonl"
             predictions_path.write_text("".join(json.dumps(p) + "\n" for p in preds.values()), encoding="utf-8")
         agent_metrics = score(rows, preds)
         usage = usage_stats({k: v for k, v in preds.items() if k in {r["alert_id"] for r in rows}})

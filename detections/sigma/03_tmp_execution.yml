@@ -1,0 +1,32 @@
+title: Execution from world-writable directory
+id: 150ab8c4-d856-5c43-8b24-3b98f430190a
+status: experimental
+description: A session made a file executable (chmod) in /tmp, /var/tmp or /dev/shm - the usual dropper pattern. Mirrors detections/kql/03_tmp_execution.kql.
+author: matt869
+date: 2026-10-09
+tags:
+    - attack.execution
+    - attack.defense-evasion
+    - attack.t1059.004
+    - attack.t1222.002
+logsource:
+    product: cowrie
+    service: ssh
+detection:
+    selection_event:
+        eventid: cowrie.command.input
+    selection_chmod:
+        input|re: '(^|[^A-Za-z0-9])chmod([^A-Za-z0-9]|$)'
+    selection_dir:
+        input|contains:
+            - /tmp
+            - /var/tmp
+            - /dev/shm
+    condition: all of selection_*
+fields:
+    - src_ip
+    - session
+    - input
+falsepositives:
+    - Operators writing test files under /tmp
+level: high

@@ -19,15 +19,16 @@ import argparse
 import hashlib
 import json
 import random
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any
 
 SENSOR = "hp-eastus-01"
 SENSOR_IP = "10.0.0.4"
 SENSOR_PORT = 2222
-START = datetime(2026, 9, 1, tzinfo=timezone.utc)
+START = datetime(2026, 9, 1, tzinfo=UTC)
 DAYS = 7
 
 COMMON_CREDS = [
@@ -97,7 +98,7 @@ class Sim:
         return day + timedelta(hours=hour, minutes=self.rng.randint(0, 2), seconds=self.rng.randint(0, 59))
 
     def sid(self) -> str:
-        return "%012x" % self.rng.getrandbits(48)
+        return f"{self.rng.getrandbits(48):012x}"
 
     def emit(self, ts: datetime, eventid: str, ip: str, session: str, message: str, **fields: Any) -> None:
         self.events.append({

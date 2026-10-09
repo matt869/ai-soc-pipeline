@@ -19,11 +19,11 @@ Details: [architecture](docs/architecture.md) · [writeup](docs/writeup.md) · [
 | [honeypot/](honeypot/) | Cowrie Docker setup, hardened config, Azure VM deploy, attack simulator |
 | [ingestion/](ingestion/) | Cowrie JSON parser and the log shipper (Logs Ingestion API, checkpointed) |
 | [siem/](siem/) | Table schema, DCE/DCR template, `deploy.ps1`, workbook, playbook notes, sample data |
-| [detections/](detections/) | 7 scheduled KQL rules, 5 hunting queries (incl. honeypot IOCs in production logs), Python mirror of the rules, ATT&CK mapping |
-| [triage/](triage/) | Enrichment, campaign correlation, the Claude triage agent and prompt, SQLite store, Sentinel write-back, IOC export, HTML report |
+| [detections/](detections/) | 7 scheduled KQL rules with Sigma equivalents, 5 hunting queries (incl. honeypot IOCs in production logs), Python mirror of the rules, ATT&CK mapping and Navigator layer |
+| [triage/](triage/) | Enrichment (activity, assets, intel, captured-payload analysis), campaign correlation, the Claude triage agent, daily budget cap, SQLite store, Sentinel write-back, analyst feedback loop, IOC export, HTML report |
 | [evaluation/](evaluation/) | Labelled alerts built from simulator ground truth; scoring vs a rule-only baseline |
-| [tests/](tests/) | 56 tests: parser, schema consistency, rules, shipper, enrichment, IOCs, correlation, agent, store, write-back, report, metrics |
-| [.github/workflows/ci.yml](.github/workflows/ci.yml) | Tests, an offline pipeline run, PowerShell parsing and template validation on every push |
+| [tests/](tests/) | 77 tests: parser, schema consistency, rules, Sigma/KQL sync, shipper, enrichment, payloads, IOCs, correlation, agent, budget, store, write-back, feedback, report, metrics |
+| [.github/workflows/ci.yml](.github/workflows/ci.yml) | Ruff, tests, Navigator-layer freshness, an offline pipeline run, PowerShell parsing and template validation on every push |
 
 ## Quick start (offline, no Azure needed)
 
@@ -41,6 +41,8 @@ python -m triage.report                                      # analyst queue -> 
 python -m triage.iocs --events data/raw/cowrie_simulated.json   # IOCs -> CSV + STIX 2.1
 python -m evaluation.evaluate                                # LLM vs baseline -> evaluation/results/report.md
 python -m evaluation.evaluate --mode alert                   # same, one request per alert, to compare cost
+python -m triage.payloads <cowrie downloads dir>             # static analysis of captured payloads
+python -m detections.navigator                               # ATT&CK Navigator coverage layer
 ```
 
 ### Run the real sensor locally
@@ -71,11 +73,26 @@ python -m triage.iocs --events <exported log> --triage-results data/processed/tr
 
 Move to `--writeback update` (severity + tags), then `close` (auto-close benign), once the evaluation and a shadow-mode period support it.
 
+Or run triage next to the sensor, with a daily spend cap and captured-payload analysis built in:
+
+```bash
+docker compose -f honeypot/docker-compose.yml --profile triage up -d --build
+```
+
+### Closing the loop with analysts
+
+```bash
+python -m triage.feedback pull-sentinel --since 7d     # analyst closures of AI-triaged incidents
+python -m triage.feedback stats                        # agent vs analyst agreement, missed hostiles
+python -m triage.feedback export --out evaluation/feedback_labels.csv
+python -m evaluation.evaluate --dataset evaluation/feedback_labels.csv   # score on real decisions
+```
+
 See [honeypot/README.md](honeypot/README.md) for operating the sensor safely, and [siem/README.md](siem/README.md) for what each deployment step creates.
 
 ## Configuration
 
-All settings live in `.env` ([.env.example](.env.example)). The triage agent defaults to `claude-opus-5-5` at effort `medium`, with server-side refusal fallbacks enabled (`TRIAGE_FALLBACKS=default`). Threat-intel lookups run only when their keys are set, and only for internet-routable IPs.
+All settings live in `.env` ([.env.example](.env.example)). The triage agent defaults to `claude-opus-5-5` at effort `medium`, with server-side refusal fallbacks enabled (`TRIAGE_FALLBACKS=default`). `TRIAGE_DAILY_BUDGET_USD` caps estimated API spend per UTC day. Once it's reached, alerts wait for the next day and show up as needing manual review. Threat-intel lookups (AbuseIPDB, GreyNoise, and MalwareBazaar/VirusTotal for payload hashes) run only when their keys are set.
 
 ## Requirements
 

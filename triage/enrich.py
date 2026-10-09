@@ -223,8 +223,33 @@ def threat_intel(ip: str, cache: IntelCache | None = None) -> dict[str, Any]:
 
 # --- entry point ---------------------------------------------------------------------
 
+def payload_context(downloads: list[dict[str, Any]], payload_dir: str | None, with_intel: bool,
+                    cache: IntelCache | None) -> list[dict[str, Any]]:
+    """Static analysis (and optional hash reputation) of payloads this source downloaded."""
+    from triage.payloads import analyze_file, find_payload, has_reputation_keys, hash_reputation
+
+    out = []
+    for download in downloads[:5]:
+        sha = download.get("sha256")
+        if not sha:
+            continue
+        entry: dict[str, Any] = {"sha256": sha, "url": download.get("url")}
+        path = find_payload(sha, payload_dir)
+        if path is not None:
+            analysis = analyze_file(path)
+            analysis.pop("sha256", None)
+            entry["static_analysis"] = analysis
+        elif payload_dir:
+            entry["static_analysis"] = "file not on the sensor (download failed or already rotated)"
+        if with_intel and has_reputation_keys():
+            entry["reputation"] = hash_reputation(sha, cache)
+        if len(entry) > 2:
+            out.append(entry)
+    return out
+
+
 def enrich(alert: dict[str, Any], source: EventSource | None, with_intel: bool = True,
-           cache: IntelCache | None = None) -> dict[str, Any]:
+           cache: IntelCache | None = None, payload_dir: str | None = None) -> dict[str, Any]:
     ip = alert["src_ip"]
     context: dict[str, Any] = {"ip": classify_ip(ip)}
     asset = lookup_asset(ip) if context["ip"].get("valid") else None
@@ -237,4 +262,9 @@ def enrich(alert: dict[str, Any], source: EventSource | None, with_intel: bool =
         context["source_activity"] = summarize_activity(source.events_for_ip(ip, start, end))
     if with_intel:
         context["threat_intel"] = threat_intel(ip, cache)
+    downloads = (context.get("source_activity") or {}).get("downloads") or []
+    if downloads and (payload_dir or with_intel):
+        payloads = payload_context(downloads, payload_dir, with_intel, cache)
+        if payloads:
+            context["payloads"] = payloads
     return context

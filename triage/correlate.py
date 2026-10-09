@@ -81,7 +81,7 @@ def build_cases(pairs: list[Pair], link_infrastructure: bool = True) -> list[Cas
     for ip, indicators in by_ip_indicators.items():
         for indicator in indicators:
             owners[indicator].add(ip)
-    for indicator, ips in owners.items():
+    for ips in owners.values():
         ips_list = sorted(ips)
         for other in ips_list[1:]:
             uf.union(ips_list[0], other)

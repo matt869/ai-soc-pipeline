@@ -18,8 +18,9 @@ import hashlib
 import json
 import re
 from collections import defaultdict
+from collections.abc import Callable, Iterable
 from datetime import datetime, timedelta
-from typing import Any, Callable, Iterable
+from typing import Any
 
 from detections.rules import load_rules
 
@@ -198,6 +199,7 @@ def run_all(events: list[Event]) -> list[Alert]:
 if __name__ == "__main__":
     import argparse
     import sys
+    from pathlib import Path
 
     from ingestion.parsers.cowrie_parser import load_events
 
@@ -207,11 +209,11 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     found = run_all(load_events(args.path))
-    out = open(args.out, "w", encoding="utf-8") if args.out else sys.stdout
-    for alert in found:
-        out.write(json.dumps(alert) + "\n")
+    lines = "".join(json.dumps(alert) + "\n" for alert in found)
     if args.out:
-        out.close()
+        Path(args.out).write_text(lines, encoding="utf-8")
+    else:
+        sys.stdout.write(lines)
     counts: dict[str, int] = defaultdict(int)
     for alert in found:
         counts[alert["rule_id"]] += 1

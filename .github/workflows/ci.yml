@@ -14,14 +14,19 @@ jobs:
           python-version: "3.11"
           cache: pip
       - run: pip install -r requirements.txt
+      - name: Lint
+        run: ruff check .
       - name: Unit tests
         run: python -m pytest -q
+      - name: ATT&CK Navigator layer is current
+        run: python -m detections.navigator --check
       - name: Offline pipeline smoke run
         run: |
           python -m honeypot.simulate_attacks
           python -m ingestion.ship_logs --log-file data/raw/cowrie_simulated.json --once --dry-run
           python -m detections.local_rules data/processed/cowrie_rows.jsonl -o data/processed/alerts.jsonl
           python -m triage.iocs --events data/raw/cowrie_simulated.json
+          python -m triage.payloads honeypot/Dockerfile.shipper > /dev/null
           python -m triage.triage_agent --events data/raw/cowrie_simulated.json --no-intel --dry-run > /dev/null
           python -m evaluation.evaluate --baseline-only > /dev/null
 

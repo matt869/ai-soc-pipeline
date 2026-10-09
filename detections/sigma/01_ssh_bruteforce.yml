@@ -1,0 +1,37 @@
+title: Cowrie failed login
+id: 9a0134de-bc59-5cc2-90d2-7c90469304c7
+name: cowrie_failed_login
+status: experimental
+description: A failed SSH/Telnet login on the Cowrie honeypot. Building block for brute-force correlations.
+author: matt869
+date: 2026-10-09
+logsource:
+    product: cowrie
+    service: ssh
+detection:
+    selection:
+        eventid: cowrie.login.failed
+    condition: selection
+level: informational
+---
+title: SSH brute force
+id: 1d7dbec8-382e-52ff-9ccd-fe191f530ce3
+status: experimental
+description: More than 20 failed SSH/Telnet logins from one source IP in a 10-minute bin. Mirrors detections/kql/01_ssh_bruteforce.kql.
+author: matt869
+date: 2026-10-09
+tags:
+    - attack.credential-access
+    - attack.t1110.001
+correlation:
+    type: event_count
+    rules:
+        - cowrie_failed_login
+    group-by:
+        - src_ip
+    timespan: 10m
+    condition:
+        gt: 20
+falsepositives:
+    - Authorized vulnerability scanners running default-credential checks (see triage/known_assets.json)
+level: medium

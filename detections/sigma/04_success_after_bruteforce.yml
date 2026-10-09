@@ -1,0 +1,72 @@
+title: Cowrie successful login
+id: 004c5f90-03aa-5fba-a823-ece468498b47
+name: cowrie_login_success
+status: experimental
+description: A successful login on the Cowrie honeypot. Building block for correlations.
+author: matt869
+date: 2026-10-09
+logsource:
+    product: cowrie
+    service: ssh
+detection:
+    selection:
+        eventid: cowrie.login.success
+    condition: selection
+level: informational
+---
+title: Cowrie failed login (for success-after-failures)
+id: 9a0134de-bc59-5cc2-90d2-7c90469304c8
+name: cowrie_failed_login_04
+status: experimental
+description: Same as cowrie_failed_login in 01_ssh_bruteforce.yml, repeated so this file is self-contained.
+author: matt869
+date: 2026-10-09
+logsource:
+    product: cowrie
+    service: ssh
+detection:
+    selection:
+        eventid: cowrie.login.failed
+    condition: selection
+level: informational
+---
+title: Five or more failed logins from one source
+id: 827748f0-abff-5277-98a6-5f157b6098b5
+name: cowrie_failures_5
+status: experimental
+description: Five or more failed logins from one source IP within an hour.
+author: matt869
+date: 2026-10-09
+correlation:
+    type: event_count
+    rules:
+        - cowrie_failed_login_04
+    group-by:
+        - src_ip
+    timespan: 1h
+    condition:
+        gte: 5
+level: low
+---
+title: Successful login after brute force
+id: da40c2e6-78d7-584e-afd2-88977e24094b
+status: experimental
+description: A source IP logged in successfully after 5 or more failed attempts within an hour. Mirrors detections/kql/04_success_after_bruteforce.kql.
+author: matt869
+date: 2026-10-09
+tags:
+    - attack.credential-access
+    - attack.initial-access
+    - attack.t1110.001
+    - attack.t1078
+correlation:
+    type: temporal_ordered
+    rules:
+        - cowrie_failures_5
+        - cowrie_login_success
+    group-by:
+        - src_ip
+    timespan: 1h
+falsepositives:
+    - An operator mistyping the test account password several times
+level: high

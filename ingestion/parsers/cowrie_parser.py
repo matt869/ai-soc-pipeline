@@ -9,9 +9,10 @@ the table columns in ``siem/infra/table-schema.json``.
 from __future__ import annotations
 
 import json
-from datetime import datetime, timezone
+from collections.abc import Iterable, Iterator
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Iterable, Iterator
+from typing import Any
 
 # Column name -> Log Analytics type. Must match siem/infra/table-schema.json and the
 # stream declaration in siem/infra/dcr-cowrie.json (tests/test_schema_consistency.py checks this).
@@ -47,7 +48,7 @@ def _parse_timestamp(value: Any) -> str | None:
     if not value:
         return None
     if isinstance(value, (int, float)):
-        dt = datetime.fromtimestamp(value, tz=timezone.utc)
+        dt = datetime.fromtimestamp(value, tz=UTC)
     else:
         text = str(value).strip().replace("Z", "+00:00")
         try:
@@ -55,8 +56,8 @@ def _parse_timestamp(value: Any) -> str | None:
         except ValueError:
             return None
         if dt.tzinfo is None:
-            dt = dt.replace(tzinfo=timezone.utc)
-    return dt.astimezone(timezone.utc).isoformat(timespec="microseconds").replace("+00:00", "Z")
+            dt = dt.replace(tzinfo=UTC)
+    return dt.astimezone(UTC).isoformat(timespec="microseconds").replace("+00:00", "Z")
 
 
 def _coerce(value: Any, col_type: str) -> Any:

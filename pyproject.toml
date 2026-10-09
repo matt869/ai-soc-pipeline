@@ -1,0 +1,32 @@
+[project]
+name = "ai-soc-pipeline"
+version = "0.2.0"
+description = "Cowrie honeypot -> Microsoft Sentinel -> ATT&CK detections -> LLM triage"
+requires-python = ">=3.11"
+
+[tool.ruff]
+line-length = 125
+target-version = "py311"
+extend-exclude = [".venv", "data"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "S", "SIM"]
+ignore = [
+    "S101",   # assert is fine in tests and for internal invariants
+    "S311",   # random is used for simulation, not crypto
+    "S324",   # sha1/md5 used for stable ids, not security
+    "S603", "S607",
+    "B008",
+    "SIM108",
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["S", "B", "E501"]
+# Attacker command lines are data here, and contain /tmp paths and long keys by design.
+"honeypot/*" = ["S108", "E501"]
+"detections/local_rules.py" = ["S108"]
+# Embedded CSS/HTML template.
+"triage/report.py" = ["E501"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

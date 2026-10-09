@@ -1,0 +1,33 @@
+title: Cryptominer deployment
+id: cc906ca5-45d1-5e30-92eb-f9837201b941
+status: experimental
+description: Commands reference a known miner binary or mining-pool protocol (xmrig, stratum+tcp...). Mirrors detections/kql/07_cryptominer.kql.
+author: matt869
+date: 2026-10-09
+tags:
+    - attack.impact
+    - attack.t1496
+logsource:
+    product: cowrie
+    service: ssh
+detection:
+    selection:
+        eventid: cowrie.command.input
+        input|contains:
+            - xmrig
+            - minerd
+            - cpuminer
+            - stratum+tcp
+            - stratum+ssl
+            - donate-level
+            - c3pool
+            - moneroocean
+            - nanopool
+    condition: selection
+fields:
+    - src_ip
+    - session
+    - input
+falsepositives:
+    - Unlikely on a honeypot
+level: high

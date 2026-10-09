@@ -1,0 +1,24 @@
+title: SSH authorized_keys modification
+id: 4ae921b3-0bfd-54b0-89c1-5bb631af1dbf
+status: experimental
+description: A session wrote to or altered ~/.ssh/authorized_keys to keep access. Mirrors detections/kql/05_ssh_key_persistence.kql.
+author: matt869
+date: 2026-10-09
+tags:
+    - attack.persistence
+    - attack.t1098.004
+logsource:
+    product: cowrie
+    service: ssh
+detection:
+    selection:
+        eventid: cowrie.command.input
+        input|contains: authorized_keys
+    condition: selection
+fields:
+    - src_ip
+    - session
+    - input
+falsepositives:
+    - Unlikely on a honeypot
+level: high

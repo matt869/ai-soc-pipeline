@@ -63,6 +63,7 @@ class SentinelWriter:
         self.arm = arm or ArmClient()
         self._incidents: dict[str, list[dict[str, Any]]] = {}
         self._entities: dict[str, set[str]] = {}
+        self.last_incident_id: str | None = None  # incident matched by the latest apply(), for the store
 
     def _candidates(self, title: str, since: datetime) -> list[dict[str, Any]]:
         key = f"{title}|{since:%Y-%m-%d}"
@@ -95,11 +96,13 @@ class SentinelWriter:
 
     def apply(self, alert: dict[str, Any], result: dict[str, Any]) -> str:
         """Returns a short status string for the store (e.g. 'comment', 'closed', 'no-incident')."""
+        self.last_incident_id = None
         if not result.get("triage"):
             return "skipped-no-verdict"
         incident = self.find_incident(alert)
         if incident is None:
             return "no-incident"
+        self.last_incident_id = incident["id"]
         comment_id = uuid.uuid5(_NS, alert["alert_id"])
         self.arm.request("PUT", f"{incident['id']}/comments/{comment_id}",
                          body={"properties": {"message": format_comment(alert, result)}})

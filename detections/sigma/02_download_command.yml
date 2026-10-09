@@ -1,0 +1,25 @@
+title: Payload download command
+id: cc28c7c7-4b52-55fe-9355-0013dd3c7ed3
+status: experimental
+description: A session ran a download utility (wget, curl, tftp, ftpget) after logging in. Mirrors detections/kql/02_download_command.kql.
+author: matt869
+date: 2026-10-09
+tags:
+    - attack.command-and-control
+    - attack.t1105
+logsource:
+    product: cowrie
+    service: ssh
+detection:
+    selection_event:
+        eventid: cowrie.command.input
+    selection_tool:
+        input|re: '(^|[^A-Za-z0-9])(wget|curl|tftp|ftpget)([^A-Za-z0-9]|$)'
+    condition: all of selection_*
+fields:
+    - src_ip
+    - session
+    - input
+falsepositives:
+    - Operators validating egress from the sensor (curl to an IP-echo service)
+level: high

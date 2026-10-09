@@ -7,6 +7,9 @@
 # Locally (no root needed, sensor on port 2222, shipper writes to disk):
 #   HONEYPOT_PORT=2222 SHIPPER_DRY_RUN=1 docker compose up --build
 #   docker compose exec shipper tail -f /state/cowrie_rows.jsonl
+#
+# Optional continuous triage next to the sensor (needs ANTHROPIC_API_KEY and the Azure values in .env):
+#   docker compose --profile triage up -d --build
 name: ai-soc-honeypot
 
 services:
@@ -45,6 +48,28 @@ services:
     cap_drop: [ALL]
     security_opt: ["no-new-privileges:true"]
 
+  triage:
+    profiles: [triage]
+    build:
+      context: ..
+      dockerfile: honeypot/Dockerfile.triage
+    restart: unless-stopped
+    env_file:
+      - path: ../.env
+        required: false
+    environment:
+      COWRIE_DOWNLOADS_DIR: /cowrie-var/lib/cowrie/downloads
+      TRIAGE_DAILY_BUDGET_USD: ${TRIAGE_DAILY_BUDGET_USD:-5}
+    command: ["python", "-m", "triage.triage_agent", "--sentinel", "--lookback", "1h", "--watch", "10m",
+              "--writeback", "${TRIAGE_WRITEBACK:-comment}", "--out", "/data/triage_results.jsonl"]
+    volumes:
+      - cowrie-var:/cowrie-var:ro      # captured payloads, read for static analysis only
+      - triage-data:/data              # SQLite store, intel cache, results
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    mem_limit: 512m
+
 volumes:
   cowrie-var:
   shipper-state:
+  triage-data:

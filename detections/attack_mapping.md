@@ -2,6 +2,11 @@
 
 Every scheduled detection lives in [`kql/`](kql/). Its header comments (`name`, `severity`, `tactics`, `techniques`, `frequency`, `period`, `description`) are the single source of truth: [`siem/infra/deploy.ps1`](../siem/infra/deploy.ps1) turns them into Sentinel analytics rules, and [`local_rules.py`](local_rules.py) mirrors each query in Python so the pipeline runs offline.
 
+Two portable views are generated from the same headers:
+
+- [`sigma/`](sigma/): every rule as Sigma, so it can be converted to Splunk, Elastic, QRadar or any other pySigma backend. Count-based rules (01, 04, 06) use Sigma v2 correlation rules; 04 chains a failure count into an ordered success. Tests check each Sigma rule's title, level and ATT&CK tags against its KQL header, and parse every file with pySigma.
+- [`attack-navigator-layer.json`](attack-navigator-layer.json): coverage for the [ATT&CK Navigator](https://mitre-attack.github.io/attack-navigator/), scored by the number of rules per technique. Regenerate with `python -m detections.navigator`; CI fails if it is stale.
+
 ## Detections
 
 | Rule | Severity | Tactic | Technique(s) | Fires on | Schedule |

@@ -1,0 +1,18 @@
+# Continuous triage job: Sentinel detections -> enrichment -> Claude -> incident write-back.
+# Build context is the repository root (see docker-compose.yml, profile "triage").
+FROM python:3.11-slim
+
+# Same uid as the cowrie user in the cowrie/cowrie image, so captured payloads in the
+# shared volume are readable for static analysis without loosening their permissions.
+RUN groupadd --gid 999 triage && useradd --create-home --uid 999 --gid 999 triage
+WORKDIR /app
+RUN pip install --no-cache-dir "anthropic>=1.11.0" "pydantic>=2.7" "requests>=2.31" "azure-identity>=1.17" \
+    "azure-monitor-query>=1.4" "python-dotenv>=1.0"
+COPY detections/ detections/
+COPY ingestion/ ingestion/
+COPY triage/ triage/
+RUN mkdir -p /data && chown triage:triage /data
+
+USER triage
+ENV TRIAGE_DB=/data/soc.db ENRICHMENT_CACHE=/data/intel.json
+CMD ["python", "-m", "triage.triage_agent", "--sentinel", "--lookback", "1h", "--watch", "10m", "--writeback", "comment"]

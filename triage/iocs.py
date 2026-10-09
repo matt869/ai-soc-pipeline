@@ -27,10 +27,11 @@ import json
 import re
 import uuid
 from collections import defaultdict
+from collections.abc import Iterable
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Iterable
+from typing import Any
 from urllib.parse import urlsplit
 
 # Indicator types. attacker_ip = a source that connected; everything else came out of what it typed.
@@ -231,7 +232,7 @@ def _stix_time(ts: str) -> str:
 
 
 def to_stix(indicators: IndicatorSet, producer: str = "ai-soc-pipeline honeypot") -> dict[str, Any]:
-    now = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.000Z")
+    now = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%S.000Z")
     identity_id = f"identity--{uuid.uuid5(_STIX_NS, producer)}"
     objects: list[dict[str, Any]] = [{
         "type": "identity", "spec_version": "2.1", "id": identity_id, "created": now, "modified": now,

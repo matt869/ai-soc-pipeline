@@ -119,8 +119,10 @@ def build_case_message(case: Case) -> str:
 
 class TriageAgent:
     def __init__(self, client: anthropic.Anthropic | None = None, model: str | None = None,
-                 effort: str | None = None, fallbacks: bool | None = None, system_prompt: str | None = None):
+                 effort: str | None = None, fallbacks: bool | None = None, system_prompt: str | None = None,
+                 budget=None):
         self.client = client or anthropic.Anthropic(max_retries=4)
+        self.budget = budget  # triage.budget.DailyBudget or None
         self.model = model or os.getenv("TRIAGE_MODEL", DEFAULT_MODEL)
         self.effort = effort if effort is not None else os.getenv("TRIAGE_EFFORT", DEFAULT_EFFORT)
         self.fallbacks = fallbacks if fallbacks is not None else os.getenv("TRIAGE_FALLBACKS", "default") != "off"
@@ -167,6 +169,9 @@ class TriageAgent:
 
     def _call(self, user_message: str) -> dict[str, Any]:
         record: dict[str, Any] = {"model_requested": self.model, "triage": None}
+        if self.budget is not None and not self.budget.allow():
+            record["error"] = f"daily budget exhausted ({self.budget.describe()}); retried tomorrow"
+            return record
         started = time.monotonic()
         try:
             response = self.client.beta.messages.create(**self.request_params(user_message))
@@ -191,6 +196,8 @@ class TriageAgent:
                 "cache_creation_input_tokens": getattr(usage, "cache_creation_input_tokens", 0) or 0,
             },
         })
+        if self.budget is not None:
+            self.budget.record(record["usage"], response.model)
         if response.stop_reason == "refusal":
             details = getattr(response, "stop_details", None)
             record["error"] = f"refused (category: {getattr(details, 'category', None)})"
@@ -284,7 +291,8 @@ def run_cycle(args: argparse.Namespace, agent: TriageAgent | None, store, writer
         log.info("Nothing new to triage")
         return 0
 
-    pairs = [(alert, enrich(alert, source, with_intel=not args.no_intel, cache=cache)) for alert in alerts]
+    pairs = [(alert, enrich(alert, source, with_intel=not args.no_intel, cache=cache, payload_dir=args.payload_dir))
+             for alert in alerts]
 
     if args.dry_run:
         dry = TriageAgent(client=anthropic.Anthropic(api_key="dry-run"))
@@ -319,7 +327,7 @@ def run_cycle(args: argparse.Namespace, agent: TriageAgent | None, store, writer
                 log.error("Write-back failed for %s: %s", alert["alert_id"], exc)
                 continue
             if store is not None:
-                store.mark_written_back(alert["alert_id"], status)
+                store.mark_written_back(alert["alert_id"], status, writer.last_incident_id)
 
     print_summary(pairs, results)
     errors = sum(1 for r in results.values() if not r.get("triage"))
@@ -348,6 +356,10 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--watch", type=parse_duration, help="repeat every interval (e.g. 10m) until stopped")
     parser.add_argument("--writeback", choices=("off", "comment", "update", "close"), default="off",
                         help="write verdicts to Sentinel incidents (needs AZURE_WORKSPACE_RESOURCE_ID)")
+    parser.add_argument("--daily-budget", type=float, default=float(os.getenv("TRIAGE_DAILY_BUDGET_USD") or 0),
+                        help="stop calling the API once today's estimated spend reaches this many USD (0 = no cap)")
+    parser.add_argument("--payload-dir", default=os.getenv("COWRIE_DOWNLOADS_DIR"),
+                        help="Cowrie downloads directory; captured payloads are statically analysed for the model")
     parser.add_argument("-v", "--verbose", action="store_true")
     args = parser.parse_args(argv)
     logging.basicConfig(level=logging.DEBUG if args.verbose else logging.INFO,
@@ -364,7 +376,13 @@ def main(argv: list[str] | None = None) -> int:
         if not workspace:
             sys.exit("Set AZURE_WORKSPACE_RESOURCE_ID (printed by siem/infra/deploy.ps1) to use --writeback")
         writer = SentinelWriter(workspace, mode=args.writeback)
-    agent = None if args.dry_run else TriageAgent()
+    budget = None
+    if args.daily_budget > 0 and not args.dry_run:
+        from triage.budget import DailyBudget
+
+        budget = DailyBudget(args.daily_budget, store)
+        log.info("Daily budget: %s", budget.describe())
+    agent = None if args.dry_run else TriageAgent(budget=budget)
     cache = IntelCache()
 
     if not args.watch:

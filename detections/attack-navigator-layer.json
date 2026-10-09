@@ -1,0 +1,142 @@
+{
+  "name": "Cowrie honeypot detections",
+  "versions": {
+    "attack": "16",
+    "navigator": "5.1.0",
+    "layer": "4.5"
+  },
+  "domain": "enterprise-attack",
+  "description": "Coverage of the scheduled KQL analytics rules in ai-soc-pipeline/detections/kql. Score = number of rules covering the technique.",
+  "filters": {
+    "platforms": [
+      "Linux",
+      "Network Devices",
+      "Containers"
+    ]
+  },
+  "sorting": 3,
+  "layout": {
+    "layout": "side",
+    "showName": true,
+    "showID": true,
+    "hideDisabled": false
+  },
+  "hideDisabled": false,
+  "techniques": [
+    {
+      "techniqueID": "T1033",
+      "score": 1,
+      "enabled": true,
+      "showSubtechniques": false,
+      "comment": "Detected by: 06_system_discovery (Low)"
+    },
+    {
+      "techniqueID": "T1059",
+      "enabled": true,
+      "showSubtechniques": true,
+      "comment": "Parent of a covered sub-technique"
+    },
+    {
+      "techniqueID": "T1059.004",
+      "score": 1,
+      "enabled": true,
+      "showSubtechniques": true,
+      "comment": "Detected by: 03_tmp_execution (High)"
+    },
+    {
+      "techniqueID": "T1078",
+      "score": 1,
+      "enabled": true,
+      "showSubtechniques": false,
+      "comment": "Detected by: 04_success_after_bruteforce (High)"
+    },
+    {
+      "techniqueID": "T1082",
+      "score": 1,
+      "enabled": true,
+      "showSubtechniques": false,
+      "comment": "Detected by: 06_system_discovery (Low)"
+    },
+    {
+      "techniqueID": "T1098",
+      "enabled": true,
+      "showSubtechniques": true,
+      "comment": "Parent of a covered sub-technique"
+    },
+    {
+      "techniqueID": "T1098.004",
+      "score": 1,
+      "enabled": true,
+      "showSubtechniques": true,
+      "comment": "Detected by: 05_ssh_key_persistence (High)"
+    },
+    {
+      "techniqueID": "T1105",
+      "score": 1,
+      "enabled": true,
+      "showSubtechniques": false,
+      "comment": "Detected by: 02_download_command (High)"
+    },
+    {
+      "techniqueID": "T1110",
+      "enabled": true,
+      "showSubtechniques": true,
+      "comment": "Parent of a covered sub-technique"
+    },
+    {
+      "techniqueID": "T1110.001",
+      "score": 2,
+      "enabled": true,
+      "showSubtechniques": true,
+      "comment": "Detected by: 01_ssh_bruteforce (Medium), 04_success_after_bruteforce (High)"
+    },
+    {
+      "techniqueID": "T1222",
+      "enabled": true,
+      "showSubtechniques": true,
+      "comment": "Parent of a covered sub-technique"
+    },
+    {
+      "techniqueID": "T1222.002",
+      "score": 1,
+      "enabled": true,
+      "showSubtechniques": true,
+      "comment": "Detected by: 03_tmp_execution (High)"
+    },
+    {
+      "techniqueID": "T1496",
+      "score": 1,
+      "enabled": true,
+      "showSubtechniques": false,
+      "comment": "Detected by: 07_cryptominer (High)"
+    }
+  ],
+  "gradient": {
+    "colors": [
+      "#d9f0d3",
+      "#5aae61",
+      "#1b7837"
+    ],
+    "minValue": 0,
+    "maxValue": 3
+  },
+  "legendItems": [
+    {
+      "label": "covered by 1 rule",
+      "color": "#d9f0d3"
+    },
+    {
+      "label": "covered by 2+ rules",
+      "color": "#5aae61"
+    }
+  ],
+  "showTacticRowBackground": true,
+  "tacticRowBackground": "#dddddd",
+  "selectTechniquesAcrossTactics": true,
+  "metadata": [
+    {
+      "name": "tactics",
+      "value": "command-and-control, credential-access, defense-evasion, discovery, execution, impact, initial-access, persistence"
+    }
+  ]
+}

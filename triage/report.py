@@ -14,7 +14,7 @@ import argparse
 import html
 import json
 from collections import Counter, defaultdict
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -178,7 +178,7 @@ def render(records: list[dict[str, Any]], title: str = "Honeypot triage queue") 
     buttons = [("all", f"All {len(cases)}"), ("escalate", f"Escalate {flags['escalate']}"),
                ("closed", f"Hostile, no escalation {flags['closed']}"), ("benign", f"Benign {flags['benign']}"),
                ("error", f"No verdict {flags['error']}")]
-    generated = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+    generated = datetime.now(UTC).strftime("%Y-%m-%d %H:%M UTC")
     return f"""<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>{_e(title)}</title><style>{CSS}</style></head>
