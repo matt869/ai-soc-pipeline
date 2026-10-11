@@ -1,5 +1,7 @@
 # AI SOC Pipeline
 
+[![ci](https://github.com/matt869/ai-soc-pipeline/actions/workflows/ci.yml/badge.svg)](https://github.com/matt869/ai-soc-pipeline/actions/workflows/ci.yml)
+
 A Cowrie SSH honeypot feeding Microsoft Sentinel, with ATT&CK-mapped KQL detections and an LLM triage step (Claude). Triage groups alerts into cases (one actor, or a whole campaign sharing infrastructure), decides how bad each case is and whether a human needs to see it, and writes the verdict back to the Sentinel incident. Everything the attackers revealed is exported as IOCs to hunt for in the production network. An evaluation harness measures the triage against a rule-only baseline.
 
 ```

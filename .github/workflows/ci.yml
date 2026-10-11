@@ -4,6 +4,15 @@ on:
   push:
   pull_request:
 
+# Read-only token: CI only checks code, it never writes to the repo.
+permissions:
+  contents: read
+
+# A newer push to the same branch cancels the older run.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   test:
     runs-on: ubuntu-latest

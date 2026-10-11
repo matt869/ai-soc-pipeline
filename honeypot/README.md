@@ -19,7 +19,7 @@ A [Cowrie](https://github.com/cowrie/cowrie) SSH honeypot on a small Azure VM, p
 ```powershell
 ./siem/infra/deploy.ps1                       # workspace, Sentinel, table, DCR (once)
 ./honeypot/deploy-vm.ps1                      # VM; prints the next commands
-./siem/infra/deploy.ps1 -ShipperPrincipalId <printed id>   # let the VM's identity ship logs
+./siem/infra/deploy.ps1 -ShipperPrincipalId <printed id> -TriagePrincipalId <printed id>   # ship logs + run triage
 ```
 
 Then copy the repo to the VM and start the containers, using the `scp` and `ssh` commands `deploy-vm.ps1` prints. The shipper authenticates with the VM's managed identity, so `.env` on the VM only needs `AZURE_DCE_ENDPOINT`, `AZURE_DCR_IMMUTABLE_ID` and `AZURE_DCR_STREAM`.
