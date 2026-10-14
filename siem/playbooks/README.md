@@ -40,9 +40,15 @@ Recommended rollout: run `comment` for a few weeks and compare the comments with
 
 The write-back status of each alert is stored, and shown in the HTML report (`python -m triage.report`).
 
+## Escalation notifications ([triage/notify.py](../../triage/notify.py))
+
+`--notify-webhook <url>` (or `TRIAGE_NOTIFY_WEBHOOK`) posts each escalated case to Microsoft Teams (a Workflows webhook, as an Adaptive Card) or Slack (an incoming webhook, as Block Kit; detected from the URL). Each message shows severity, verdict, sources, rules, summary, key evidence and next steps. `--notify-min-severity` (default `medium`) filters by severity, and the store records sent cases so a case is announced once even in watch mode.
+
+The message text started as attacker input or as model output about it, so every URL and IP is **defanged** (`hxxp://198[.]51[.]100[.]23/...`) and markdown/Slack link syntax is broken. Neither an attacker nor the model can put a clickable link in front of an analyst.
+
 ## Analyst feedback ([triage/feedback.py](../../triage/feedback.py))
 
-When an analyst closes an incident the agent commented on, `python -m triage.feedback pull-sentinel` imports the decision: *TruePositive* → malicious, *BenignPositive*/*FalsePositive* → benign, *Undetermined* → skipped. Closures made by the agent itself (`close` mode) are never imported as human labels. `stats` reports agreement, and lists every alert the agent called benign but an analyst called hostile, which is the number that should gate `close` mode. `export` writes the labels in the evaluation format, so a prompt or model change can be scored against your own analysts' decisions before it ships.
+When an analyst closes an incident the agent commented on, `python -m triage.feedback pull-sentinel` imports the decision: *TruePositive* → malicious, *BenignPositive*/*FalsePositive* → benign, *Undetermined* → skipped. Closures made by the agent itself (`close` mode) are never imported as human labels. `stats` reports agreement, and lists every alert the agent called benign but an analyst called hostile, which is the number that should gate `close` mode. `rules` breaks the labels down per detection and flags rules whose alerts analysts mostly close as benign, along with the top benign sources, so they can be tuned at the source. `export` writes the labels in the evaluation format, so a prompt or model change can be scored against your own analysts' decisions before it ships.
 
 ## Guardrails
 

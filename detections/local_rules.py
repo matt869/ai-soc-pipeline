@@ -179,6 +179,27 @@ def cryptominer(events: list[Event]) -> list[Alert]:
                         [e for e in _commands(events) if any(_contains(e["input"], m) for m in MINER_MARKERS)])
 
 
+# Case-sensitive on purpose: real busybox applets are lowercase, the Mirai probe token is not.
+BUSYBOX_PROBE = re.compile(r"/bin/busybox\s+([A-Z]{4,12})(?:\s|;|$)")
+
+
+def busybox_probe(events: list[Event]) -> list[Alert]:
+    grouped: dict[tuple[str, str], list[Event]] = defaultdict(list)
+    for event in _commands(events):
+        if BUSYBOX_PROBE.search(event["input"]):
+            grouped[(event["src_ip"], event["session"])].append(event)
+    alerts = []
+    for (src_ip, session), group in grouped.items():
+        group.sort(key=lambda e: e["TimeGenerated"])
+        probes = sorted({m.group(1) for e in group for m in BUSYBOX_PROBE.finditer(e["input"])})
+        alerts.append(build_alert(
+            "08_busybox_probe", src_ip, session, group[0]["TimeGenerated"], group[-1]["TimeGenerated"],
+            {"Probes": probes, "Commands": [e["input"] for e in group][:25], "Protocol": group[0].get("protocol")},
+            key=[src_ip, session],
+        ))
+    return alerts
+
+
 RULES: dict[str, Callable[[list[Event]], list[Alert]]] = {
     "01_ssh_bruteforce": ssh_bruteforce,
     "02_download_command": download_command,
@@ -187,6 +208,7 @@ RULES: dict[str, Callable[[list[Event]], list[Alert]]] = {
     "05_ssh_key_persistence": ssh_key_persistence,
     "06_system_discovery": system_discovery,
     "07_cryptominer": cryptominer,
+    "08_busybox_probe": busybox_probe,
 }
 
 

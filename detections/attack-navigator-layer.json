@@ -52,10 +52,10 @@
     },
     {
       "techniqueID": "T1082",
-      "score": 1,
+      "score": 2,
       "enabled": true,
       "showSubtechniques": false,
-      "comment": "Detected by: 06_system_discovery (Low)"
+      "comment": "Detected by: 06_system_discovery (Low), 08_busybox_probe (Medium)"
     },
     {
       "techniqueID": "T1098",
@@ -109,6 +109,19 @@
       "enabled": true,
       "showSubtechniques": false,
       "comment": "Detected by: 07_cryptominer (High)"
+    },
+    {
+      "techniqueID": "T1497",
+      "enabled": true,
+      "showSubtechniques": true,
+      "comment": "Parent of a covered sub-technique"
+    },
+    {
+      "techniqueID": "T1497.001",
+      "score": 1,
+      "enabled": true,
+      "showSubtechniques": true,
+      "comment": "Detected by: 08_busybox_probe (Medium)"
     }
   ],
   "gradient": {

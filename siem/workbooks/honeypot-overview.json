@@ -86,6 +86,20 @@
       "type": 3,
       "content": {
         "version": "KqlItem/1.0",
+        "query": "Cowrie_CL\n| where eventid == \"cowrie.session.connect\"\n| summarize Sessions = count() by protocol",
+        "size": 0,
+        "title": "Sessions by protocol (SSH vs Telnet)",
+        "timeContextFromParameter": "TimeRange",
+        "queryType": 0,
+        "resourceType": "microsoft.operationalinsights/workspaces",
+        "visualization": "piechart"
+      },
+      "customWidth": "50"
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
         "query": "Cowrie_CL\n| summarize Events = count(), FailedLogins = countif(eventid == \"cowrie.login.failed\"),\n            LoggedIn = countif(eventid == \"cowrie.login.success\") > 0, Commands = countif(eventid == \"cowrie.command.input\") by src_ip\n| top 20 by Events",
         "size": 0,
         "title": "Top source IPs",

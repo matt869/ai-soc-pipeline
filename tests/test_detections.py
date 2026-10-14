@@ -9,7 +9,7 @@ EXPECTED = {
     "bruteforce_only": {"01_ssh_bruteforce"},
     "bruteforce_success_recon": {"01_ssh_bruteforce", "04_success_after_bruteforce", "06_system_discovery"},
     "miner_dropper": {"02_download_command", "03_tmp_execution", "05_ssh_key_persistence", "07_cryptominer"},
-    "mirai_botnet": {"02_download_command", "03_tmp_execution"},
+    "mirai_botnet": {"02_download_command", "03_tmp_execution", "08_busybox_probe"},
     "ssh_key_implant": {"05_ssh_key_persistence"},
     "egress_check": {"02_download_command"},
     "prompt_injection_dropper": {"02_download_command", "03_tmp_execution"},
@@ -17,6 +17,8 @@ EXPECTED = {
     "internal_vuln_scan": {"01_ssh_bruteforce"},
     "internal_lateral": {"01_ssh_bruteforce", "02_download_command", "03_tmp_execution", "04_success_after_bruteforce"},
     "scanner_noise": set(),
+    "mirai_telnet": {"01_ssh_bruteforce", "04_success_after_bruteforce", "02_download_command", "03_tmp_execution",
+                     "08_busybox_probe"},
 }
 
 
@@ -59,6 +61,19 @@ def _failures(n):
 def test_bruteforce_threshold():
     assert ssh_bruteforce(_failures(20)) == []
     assert len(ssh_bruteforce(_failures(21))) == 1
+
+
+def test_busybox_probe_is_case_sensitive():
+    from detections.local_rules import busybox_probe
+
+    def cmd(text):
+        return [{"eventid": "cowrie.command.input", "src_ip": "203.0.113.9", "session": "s", "input": text,
+                 "TimeGenerated": "2026-09-01T10:00:00.000000Z", "protocol": "telnet"}]
+
+    assert busybox_probe(cmd("/bin/busybox ECCHI"))[0]["evidence"]["Probes"] == ["ECCHI"]
+    assert busybox_probe(cmd("cat /proc/mounts; /bin/busybox QWERT; echo ok"))
+    assert busybox_probe(cmd("/bin/busybox wget http://x/y")) == []  # a real applet
+    assert busybox_probe(cmd("/bin/busybox ls")) == []
 
 
 def test_has_term_matching():

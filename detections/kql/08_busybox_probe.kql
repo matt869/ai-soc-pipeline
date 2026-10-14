@@ -1,0 +1,17 @@
+// name: Busybox probe (Mirai-family loader)
+// severity: Medium
+// tactics: Discovery, DefenseEvasion
+// techniques: T1082, T1497.001
+// frequency: PT10M
+// period: PT10M
+// description: /bin/busybox followed by a random uppercase token - the Mirai-family check for a real busybox shell before loading a bot.
+Cowrie_CL
+| where eventid == "cowrie.command.input"
+| where input matches regex @"/bin/busybox\s+[A-Z]{4,12}(\s|;|$)"
+| extend Probe = extract(@"/bin/busybox\s+([A-Z]{4,12})", 1, input)
+| summarize Probes = make_set(Probe, 10),
+            Commands = make_list(input, 25),
+            Protocol = any(protocol),
+            FirstSeen = min(TimeGenerated),
+            LastSeen = max(TimeGenerated)
+    by src_ip, session

@@ -1,9 +1,9 @@
 <#
 .SYNOPSIS
-    Creates the honeypot VM in Azure: Ubuntu 24.04, Cowrie on port 22, admin SSH on 22222.
+    Creates the honeypot VM in Azure: Ubuntu 24.04, Cowrie on ports 22 (SSH) and 23 (Telnet), admin SSH on 22222.
 
 .DESCRIPTION
-    - Public port 22 is open to the internet (that is the point of a honeypot).
+    - Public ports 22 and 23 are open to the internet (that is the point of a honeypot).
     - Admin SSH (22222) is only reachable from -AdminSourceIp (defaults to your current public IP).
     - The VM gets a system-assigned managed identity, which deploy.ps1 can grant
       "Monitoring Metrics Publisher" on the DCR so the shipper needs no secrets.
@@ -44,6 +44,8 @@ $nsg = "$VmName-nsg"
 Invoke-Az network nsg create -g $ResourceGroup -n $nsg -l $Location -o none
 Invoke-Az network nsg rule create -g $ResourceGroup --nsg-name $nsg -n allow-honeypot-ssh --priority 100 `
     --direction Inbound --access Allow --protocol Tcp --source-address-prefixes Internet --destination-port-ranges 22 -o none
+Invoke-Az network nsg rule create -g $ResourceGroup --nsg-name $nsg -n allow-honeypot-telnet --priority 105 `
+    --direction Inbound --access Allow --protocol Tcp --source-address-prefixes Internet --destination-port-ranges 23 -o none
 Invoke-Az network nsg rule create -g $ResourceGroup --nsg-name $nsg -n allow-admin-ssh --priority 110 `
     --direction Inbound --access Allow --protocol Tcp --source-address-prefixes "$AdminSourceIp/32" --destination-port-ranges 22222 -o none
 

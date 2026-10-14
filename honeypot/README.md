@@ -5,7 +5,7 @@ A [Cowrie](https://github.com/cowrie/cowrie) SSH honeypot on a small Azure VM, p
 | File | Purpose |
 |---|---|
 | [docker-compose.yml](docker-compose.yml) | Cowrie (port 22 → 2222) and the shipper, sharing Cowrie's log volume read-only |
-| [cowrie.cfg](cowrie.cfg) | Overrides: believable hostname/banner, JSON logging, Telnet and TCP forwarding off |
+| [cowrie.cfg](cowrie.cfg) | Overrides: believable hostname/banner, JSON logging, SSH (2222) and Telnet (2223) listeners, TCP forwarding off |
 | [userdb.txt](userdb.txt) | Which credentials "work". A short weak list, so bots get a shell and reveal their payloads |
 | [Dockerfile.shipper](Dockerfile.shipper) | Minimal image for `ingestion/ship_logs.py` |
 | [cloud-init.yaml](cloud-init.yaml) | VM bootstrap: real sshd moves to port 22222, Docker installed |
@@ -33,8 +33,9 @@ Cowrie_CL | summarize count() by eventid
 ## Run locally
 
 ```bash
-HONEYPOT_PORT=2222 SHIPPER_DRY_RUN=1 docker compose -f honeypot/docker-compose.yml up --build
+HONEYPOT_PORT=2222 HONEYPOT_TELNET_PORT=2323 SHIPPER_DRY_RUN=1 docker compose -f honeypot/docker-compose.yml up --build
 ssh -p 2222 root@localhost          # password: admin123
+telnet localhost 2323               # same credentials
 docker compose -f honeypot/docker-compose.yml exec shipper tail -f /state/cowrie_rows.jsonl
 ```
 
@@ -42,9 +43,9 @@ Or let the smoke test play attacker (6 failed passwords, login, recon, a payload
 
 ```bash
 pip install paramiko
-python -m honeypot.smoke_test --port 2222
+python -m honeypot.smoke_test --port 2222 --telnet-port 2323
 docker compose -f honeypot/docker-compose.yml cp shipper:/state/cowrie_rows.jsonl data/processed/live_rows.jsonl
-python -m detections.local_rules data/processed/live_rows.jsonl    # expect rules 02, 03, 04, 05, 06
+python -m detections.local_rules data/processed/live_rows.jsonl    # expect rules 02, 03, 04, 05, 06, 08
 ```
 
 With Docker Desktop (Windows/macOS), connections from your own machine show up as the Docker gateway (`172.x.0.1`), not your IP. On a Linux VM, published ports use iptables DNAT, so Cowrie sees the real attacker address. In Git Bash, prefix `docker compose exec` commands with `MSYS_NO_PATHCONV=1` so `/state/...` is not rewritten to a Windows path.
@@ -61,13 +62,17 @@ python -m triage.payloads /var/lib/docker/volumes/ai-soc-honeypot_cowrie-var/_da
 
 Every file is identified by its header (ELF architecture/bitness/endianness, script interpreter, archive type) and scanned for UPX packing, family hints (Mirai-style busybox/watchdog handling, miners, SSH-key or cron persistence, log wiping, DDoS routines) and IOCs embedded in its strings. With `MALWAREBAZAAR_API_KEY` / `VT_API_KEY` set, it also gets a hash reputation lookup. The triage agent includes this analysis for every payload a case downloaded (`--payload-dir`, or `COWRIE_DOWNLOADS_DIR`). Nothing is ever executed.
 
+## Telnet
+
+IoT botnets (Mirai and its descendants) still spray Telnet with camera and DVR default credentials, so the sensor listens on Telnet as well (port 23 on the VM; `deploy-vm.ps1` opens it in the NSG). Telnet sessions land in the same `Cowrie_CL` table with `protocol = "telnet"`, and every rule covers them. Rule 08 (busybox probe) is aimed squarely at these loaders.
+
 ## No sensor yet? Simulate one
 
 ```bash
 python -m honeypot.simulate_attacks             # data/raw/cowrie_simulated.json + ground_truth.json
 ```
 
-The simulator produces 10 actor scenarios plus background scanner noise: brute-force bots, a Mirai-style loader, an XMRig dropper with persistence, the "mdrfckr" SSH-key botnet, an egress-check proxy validator, a dropper that tries to prompt-inject the triage agent, authorized internal activity (operator validation, a Nessus scan), and an unknown internal host moving laterally. Attacker IPs come from the RFC 5737 documentation ranges, so no real host is labelled malicious.
+The simulator produces 11 actor scenarios plus background scanner noise: brute-force bots, Mirai-style loaders over SSH and over Telnet (an IoT credential-spraying campaign sharing one C2), an XMRig dropper with persistence, the "mdrfckr" SSH-key botnet, an egress-check proxy validator, a dropper that tries to prompt-inject the triage agent, authorized internal activity (operator validation, a Nessus scan), and an unknown internal host moving laterally. Attacker IPs come from the RFC 5737 documentation ranges, so no real host is labelled malicious.
 
 ## Operating safely
 

@@ -20,7 +20,8 @@ def test_cases_never_mix_scenarios(sim, pairs):
 
 def test_campaigns_are_merged_on_shared_infrastructure(sim, pairs):
     cases = build_cases(pairs)
-    for scenario, link in [("mirai_botnet", "c2_ip"), ("miner_dropper", "monero_wallet"), ("ssh_key_implant", "ssh_key")]:
+    for scenario, link in [("mirai_botnet", "c2_ip"), ("miner_dropper", "monero_wallet"),
+                         ("ssh_key_implant", "ssh_key"), ("mirai_telnet", "c2_ip")]:
         ips = {ip for ip, t in sim.truth.items() if t.scenario == scenario}
         case = next(c for c in cases if set(c.src_ips) & ips)
         assert set(case.src_ips) == ips, scenario

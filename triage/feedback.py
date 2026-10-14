@@ -14,6 +14,7 @@ the current prompt and model against your own analysts.
     python -m triage.feedback pull-sentinel --since 7d
 
     python -m triage.feedback stats
+    python -m triage.feedback rules            # which detections analysts keep closing as benign
     python -m triage.feedback export --out evaluation/feedback_labels.csv
 """
 
@@ -109,6 +110,34 @@ def agreement(rows: list[dict[str, Any]]) -> dict[str, Any]:
     }
 
 
+def rule_report(rows: list[dict[str, Any]], min_labels: int = 5, noisy_share: float = 0.5) -> list[dict[str, Any]]:
+    """Per detection rule: how often analysts called its alerts benign, and how often the agent agreed.
+
+    A rule whose alerts analysts mostly close as benign is a tuning candidate (threshold, allowlist,
+    or a known-asset entry) - fixing it at the rule is cheaper than triaging it forever.
+    """
+    by_rule: dict[str, list[dict[str, Any]]] = {}
+    for r in rows:
+        by_rule.setdefault(r["rule_id"], []).append(r)
+    report = []
+    for rule_id, items in sorted(by_rule.items()):
+        benign = sum(r["verdict"] == "benign" for r in items)
+        with_ai = [r for r in items if r["ai_verdict"]]
+        agree = sum((r["ai_verdict"] != "benign") == (r["verdict"] != "benign") for r in with_ai)
+        share = benign / len(items)
+        if len(items) < min_labels:
+            advice = f"needs more labels (have {len(items)}, want {min_labels})"
+        elif share >= noisy_share:
+            sources = Counter(r["src_ip"] for r in items if r["verdict"] == "benign").most_common(3)
+            advice = ("tune: analysts close most of these as benign; top benign sources "
+                      + ", ".join(f"{ip} ({n})" for ip, n in sources))
+        else:
+            advice = "keep"
+        report.append({"rule_id": rule_id, "labelled": len(items), "benign_share": round(share, 2),
+                       "agent_agreement": round(agree / len(with_ai), 2) if with_ai else None, "advice": advice})
+    return report
+
+
 def export(store: Store, out: Path) -> int:
     from evaluation.build_dataset import FIELDS
 
@@ -155,6 +184,7 @@ def main(argv: list[str] | None = None) -> int:
     p_pull = sub.add_parser("pull-sentinel", help="import analyst closures of AI-triaged incidents")
     p_pull.add_argument("--since", type=parse_duration, default=timedelta(days=7))
     sub.add_parser("stats", help="agreement between analysts and the agent")
+    sub.add_parser("rules", help="per-rule benign share from analyst labels; flags rules worth tuning")
     p_export = sub.add_parser("export", help="write labels in the evaluation CSV format")
     p_export.add_argument("--out", type=Path, default=Path("evaluation/feedback_labels.csv"))
     args = parser.parse_args(argv)
@@ -175,6 +205,11 @@ def main(argv: list[str] | None = None) -> int:
             print(json.dumps(pull_sentinel(store, workspace, args.since)))
         elif args.command == "stats":
             print(json.dumps(agreement(store.feedback_rows()), indent=2))
+        elif args.command == "rules":
+            for row in rule_report(store.feedback_rows()):
+                agreement_text = "-" if row["agent_agreement"] is None else f"{row['agent_agreement']:.0%}"
+                print(f"{row['rule_id']:<30} labelled {row['labelled']:>4}  benign {row['benign_share']:>4.0%}  "
+                      f"agent agrees {agreement_text:>4}  {row['advice']}")
         else:
             n = export(store, args.out)
             print(f"{n} labelled alert(s) -> {args.out}  (python -m evaluation.evaluate --dataset {args.out})")

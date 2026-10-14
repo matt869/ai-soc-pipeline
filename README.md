@@ -2,7 +2,7 @@
 
 [![ci](https://github.com/matt869/ai-soc-pipeline/actions/workflows/ci.yml/badge.svg)](https://github.com/matt869/ai-soc-pipeline/actions/workflows/ci.yml)
 
-A Cowrie SSH honeypot feeding Microsoft Sentinel, with ATT&CK-mapped KQL detections and an LLM triage step (Claude). Triage groups alerts into cases (one actor, or a whole campaign sharing infrastructure), decides how bad each case is and whether a human needs to see it, and writes the verdict back to the Sentinel incident. Everything the attackers revealed is exported as IOCs to hunt for in the production network. An evaluation harness measures the triage against a rule-only baseline.
+A Cowrie SSH and Telnet honeypot feeding Microsoft Sentinel, with ATT&CK-mapped KQL detections and an LLM triage step (Claude). Triage groups alerts into cases (one actor, or a whole campaign sharing infrastructure), decides how bad each case is and whether a human needs to see it, and writes the verdict back to the Sentinel incident. Everything the attackers revealed is exported as IOCs to hunt for in the production network. An evaluation harness measures the triage against a rule-only baseline.
 
 ```
 Cowrie ─► ship_logs.py ─► DCE/DCR ─► Cowrie_CL ─► KQL analytics rules ─► incidents ◄── comment / severity / close ──┐
@@ -21,10 +21,10 @@ Details: [architecture](docs/architecture.md) · [writeup](docs/writeup.md) · [
 | [honeypot/](honeypot/) | Cowrie Docker setup, hardened config, Azure VM deploy, attack simulator |
 | [ingestion/](ingestion/) | Cowrie JSON parser and the log shipper (Logs Ingestion API, checkpointed) |
 | [siem/](siem/) | Table schema, DCE/DCR template, `deploy.ps1`, workbook, playbook notes, sample data |
-| [detections/](detections/) | 7 scheduled KQL rules with Sigma equivalents, 5 hunting queries (incl. honeypot IOCs in production logs), Python mirror of the rules, ATT&CK mapping and Navigator layer |
-| [triage/](triage/) | Enrichment (activity, assets, intel, captured-payload analysis), campaign correlation, the Claude triage agent, daily budget cap, SQLite store, Sentinel write-back, analyst feedback loop, IOC export, HTML report |
-| [evaluation/](evaluation/) | Labelled alerts built from simulator ground truth; scoring vs a rule-only baseline |
-| [tests/](tests/) | 77 tests: parser, schema consistency, rules, Sigma/KQL sync, shipper, enrichment, payloads, IOCs, correlation, agent, budget, store, write-back, feedback, report, metrics |
+| [detections/](detections/) | 8 scheduled KQL rules with Sigma equivalents, 5 hunting queries (incl. honeypot IOCs in production logs), Python mirror of the rules, ATT&CK mapping and Navigator layer |
+| [triage/](triage/) | Enrichment (activity, assets, intel, captured-payload analysis), campaign correlation, the Claude triage agent, daily budget cap, SQLite store, Sentinel write-back, Teams/Slack escalation alerts, analyst feedback loop, IOC export, HTML report |
+| [evaluation/](evaluation/) | Labelled alerts built from simulator ground truth, a prompt-injection test set, and scoring against a rule-only baseline |
+| [tests/](tests/) | 85 tests: parser, schema consistency, rules, Sigma/KQL sync, shipper, enrichment, payloads, IOCs, correlation, agent, budget, store, write-back, notifications, feedback, report, metrics |
 | [.github/workflows/ci.yml](.github/workflows/ci.yml) | Ruff, tests, Navigator-layer freshness, an offline pipeline run, PowerShell parsing and template validation on every push |
 
 ## Quick start (offline, no Azure needed)
@@ -38,11 +38,12 @@ python -m pytest -q                                          # tests
 python -m honeypot.simulate_attacks                          # synthetic Cowrie log + ground truth
 python -m detections.local_rules data/raw/cowrie_simulated.json -o data/processed/alerts.jsonl
 python -m triage.triage_agent --events data/raw/cowrie_simulated.json --limit 1 --dry-run   # inspect a request
-python -m triage.triage_agent --events data/raw/cowrie_simulated.json                       # 44 alerts in 18 cases
+python -m triage.triage_agent --events data/raw/cowrie_simulated.json                       # 62 alerts in 19 cases
 python -m triage.report                                      # analyst queue -> data/processed/triage_report.html
 python -m triage.iocs --events data/raw/cowrie_simulated.json   # IOCs -> CSV + STIX 2.1
 python -m evaluation.evaluate                                # LLM vs baseline -> evaluation/results/report.md
 python -m evaluation.evaluate --mode alert                   # same, one request per alert, to compare cost
+python -m evaluation.evaluate --dataset evaluation/adversarial_alerts.csv --mode alert   # prompt-injection resistance
 python -m triage.payloads <cowrie downloads dir>             # static analysis of captured payloads
 python -m detections.navigator                               # ATT&CK Navigator coverage layer
 ```
@@ -50,8 +51,8 @@ python -m detections.navigator                               # ATT&CK Navigator 
 ### Run the real sensor locally
 
 ```bash
-HONEYPOT_PORT=2222 SHIPPER_DRY_RUN=1 docker compose -f honeypot/docker-compose.yml up -d --build
-python -m honeypot.smoke_test --port 2222          # scripted intrusion against your own sensor
+HONEYPOT_PORT=2222 HONEYPOT_TELNET_PORT=2323 SHIPPER_DRY_RUN=1 docker compose -f honeypot/docker-compose.yml up -d --build
+python -m honeypot.smoke_test --port 2222 --telnet-port 2323   # scripted SSH + Telnet intrusion against your own sensor
 docker compose -f honeypot/docker-compose.yml cp shipper:/state/cowrie_rows.jsonl data/processed/live_rows.jsonl
 python -m detections.local_rules data/processed/live_rows.jsonl
 docker compose -f honeypot/docker-compose.yml down
@@ -69,7 +70,8 @@ az login
 Then run triage continuously against Sentinel. It skips alerts it already triaged, and starts in shadow mode, which only adds a comment to each incident:
 
 ```bash
-python -m triage.triage_agent --sentinel --lookback 1h --watch 10m --writeback comment
+python -m triage.triage_agent --sentinel --lookback 1h --watch 10m --writeback comment \
+    --notify-webhook "$TEAMS_OR_SLACK_WEBHOOK"          # escalated cases to chat, once per case, IOCs defanged
 python -m triage.iocs --events <exported log> --triage-results data/processed/triage_results.jsonl --upload-watchlist
 ```
 
@@ -86,6 +88,7 @@ docker compose -f honeypot/docker-compose.yml --profile triage up -d --build
 ```bash
 python -m triage.feedback pull-sentinel --since 7d     # analyst closures of AI-triaged incidents
 python -m triage.feedback stats                        # agent vs analyst agreement, missed hostiles
+python -m triage.feedback rules                        # detections analysts keep closing as benign
 python -m triage.feedback export --out evaluation/feedback_labels.csv
 python -m evaluation.evaluate --dataset evaluation/feedback_labels.csv   # score on real decisions
 ```

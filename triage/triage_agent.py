@@ -278,7 +278,8 @@ def print_summary(pairs, results) -> None:
         print(f"{alert['alert_id']:<15} {result.get('case_id') or '-':<16} {alert['src_ip']:<15} {line}", file=sys.stderr)
 
 
-def run_cycle(args: argparse.Namespace, agent: TriageAgent | None, store, writer, cache: IntelCache) -> int:
+def run_cycle(args: argparse.Namespace, agent: TriageAgent | None, store, writer, cache: IntelCache,
+              notifier=None) -> int:
     alerts, source = load_alerts(args)
     total = len(alerts)
     if store is not None and not args.retriage:
@@ -329,6 +330,11 @@ def run_cycle(args: argparse.Namespace, agent: TriageAgent | None, store, writer
             if store is not None:
                 store.mark_written_back(alert["alert_id"], status, writer.last_incident_id)
 
+    if notifier is not None:
+        sent = notifier.notify_results(pairs, results)
+        if sent:
+            log.info("Sent %d escalation notification(s) to %s", sent, notifier.kind)
+
     print_summary(pairs, results)
     errors = sum(1 for r in results.values() if not r.get("triage"))
     print(f"\n{len(results) - errors}/{len(results)} triaged in {calls} call(s), {errors} errors -> {out}", file=sys.stderr)
@@ -360,6 +366,11 @@ def main(argv: list[str] | None = None) -> int:
                         help="stop calling the API once today's estimated spend reaches this many USD (0 = no cap)")
     parser.add_argument("--payload-dir", default=os.getenv("COWRIE_DOWNLOADS_DIR"),
                         help="Cowrie downloads directory; captured payloads are statically analysed for the model")
+    parser.add_argument("--notify-webhook", default=os.getenv("TRIAGE_NOTIFY_WEBHOOK"),
+                        help="Teams (Workflows) or Slack incoming-webhook URL for escalated cases")
+    parser.add_argument("--notify-min-severity", default=os.getenv("TRIAGE_NOTIFY_MIN_SEVERITY", "medium"),
+                        choices=("informational", "low", "medium", "high", "critical"),
+                        help="only notify escalated cases at or above this severity (default medium)")
     parser.add_argument("-v", "--verbose", action="store_true")
     args = parser.parse_args(argv)
     logging.basicConfig(level=logging.DEBUG if args.verbose else logging.INFO,
@@ -384,9 +395,14 @@ def main(argv: list[str] | None = None) -> int:
         log.info("Daily budget: %s", budget.describe())
     agent = None if args.dry_run else TriageAgent(budget=budget)
     cache = IntelCache()
+    notifier = None
+    if args.notify_webhook and not args.dry_run:
+        from triage.notify import Notifier
+
+        notifier = Notifier(args.notify_webhook, min_severity=args.notify_min_severity, store=store)
 
     if not args.watch:
-        return run_cycle(args, agent, store, writer, cache)
+        return run_cycle(args, agent, store, writer, cache, notifier)
 
     stopping = False
 
@@ -399,7 +415,7 @@ def main(argv: list[str] | None = None) -> int:
     signal.signal(signal.SIGTERM, stop)
     while not stopping:
         try:
-            run_cycle(args, agent, store, writer, cache)
+            run_cycle(args, agent, store, writer, cache, notifier)
         except Exception:
             log.exception("Triage cycle failed; retrying next interval")
         deadline = time.monotonic() + args.watch.total_seconds()

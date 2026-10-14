@@ -1,0 +1,31 @@
+title: Busybox probe (Mirai-family loader)
+id: bc78ef95-c876-5958-8ff6-9fae896ee38f
+status: experimental
+description: >-
+    /bin/busybox followed by a random uppercase token - the Mirai-family check for a real busybox shell before
+    loading a bot. Mirrors detections/kql/08_busybox_probe.kql. The regex is case-sensitive on purpose: real busybox
+    applets are lowercase.
+author: matt869
+date: 2026-10-14
+tags:
+    - attack.discovery
+    - attack.defense-evasion
+    - attack.t1082
+    - attack.t1497.001
+logsource:
+    product: cowrie
+    service: ssh
+detection:
+    selection_event:
+        eventid: cowrie.command.input
+    selection_probe:
+        input|re: '/bin/busybox\s+[A-Z]{4,12}(\s|;|$)'
+    condition: all of selection_*
+fields:
+    - src_ip
+    - session
+    - input
+    - protocol
+falsepositives:
+    - None known; legitimate busybox use calls lowercase applets
+level: medium

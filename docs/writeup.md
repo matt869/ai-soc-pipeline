@@ -25,39 +25,49 @@ This project wires a Cowrie honeypot into Microsoft Sentinel, writes ATT&CK-mapp
 
 **Context over allowlists.** The internal Nessus scanner brute-forces the sensor every week. An allowlist would silence it, and would also silence an attacker who compromised it. Instead, the asset inventory describes what each host is expected to do and the model checks the activity against that. The evaluation includes the opposite case too: an internal host with no inventory entry that brute-forces the sensor and stages an agent. That should come out critical.
 
-**Campaigns are the unit of work.** Three Mirai bots downloading from the same C2 are one problem, not six alerts. Linking on infrastructure the attackers actually used gives the model the campaign view, and cuts the simulated dataset from 44 requests to 18. `python -m evaluation.evaluate --mode alert` measures whether that costs any accuracy.
+**Campaigns are the unit of work.** Three Mirai bots downloading from the same C2 are one problem, not six alerts. Linking on infrastructure the attackers actually used gives the model the campaign view, and cuts the simulated dataset from 62 requests to 19. `python -m evaluation.evaluate --mode alert` measures whether that costs any accuracy.
 
 **One source of truth for rules.** Rule metadata lives in KQL header comments. The deploy script turns them into Sentinel analytics rules, and a Python mirror of each rule lets the whole pipeline run, and be tested, without Azure.
 
 ## Evaluation
 
-There is no public labelled dataset for "honeypot alerts, triaged". So the simulator generates one: 10 actor scenarios plus background noise, every source IP tagged with ground truth (verdict, overall severity, whether to escalate). Running the real detection rules over it produces 44 alerts. 39 come from hostile actors, 5 from authorized internal activity, and 33 merit escalation (malicious at medium severity or above).
+There is no public labelled dataset for "honeypot alerts, triaged". So the simulator generates one: 11 actor scenarios plus background noise, every source IP tagged with ground truth (verdict, overall severity, whether to escalate). Running the real detection rules over it produces 62 alerts. 57 come from hostile actors, 5 from authorized internal activity, and 51 merit escalation (malicious at medium severity or above).
 
 The baseline is the SOC without triage: every alert is malicious, every alert is escalated, and severity is the rule's static value.
 
 | Metric | Rule-only baseline |
 |---|---|
-| Hostile alerts caught | 39/39 |
+| Hostile alerts caught | 57/57 |
 | Benign alerts closed | 0/5 |
-| Alerts escalated to a human | 44/44 (queue reduction 0%) |
-| Escalation precision | 75% |
-| Severity exact / within one level | 30% / 86% |
+| Alerts escalated to a human | 62/62 (queue reduction 0%) |
+| Escalation precision | 82% |
+| Severity exact / within one level | 35% / 90% |
 
 To score the LLM against the same labels:
 
 ```bash
-python -m evaluation.evaluate        # ~44 API calls; writes evaluation/results/report.md
+python -m evaluation.evaluate        # ~19 API calls (one per case); writes evaluation/results/report.md
 ```
 
 The report adds the LLM column and a per-scenario breakdown, including whether the prompt-injection dropper and the unknown internal host were caught. It also lists every alert where the model disagreed with the labels, plus latency and estimated cost per alert.
 
-What counts as success is set before the numbers come in. The agent should close the benign alerts and keep failed brute force out of the queue (queue reduction). It should miss no escalation-worthy alert (escalation recall stays at 100%), and it should beat the baseline's 30% severity accuracy.
+What counts as success is set before the numbers come in. The agent should close the benign alerts and keep failed brute force out of the queue (queue reduction). It should miss no escalation-worthy alert (escalation recall stays at 100%), and it should beat the baseline's 35% severity accuracy.
+
+### Prompt-injection resistance
+
+Attackers write every command the model reads. [evaluation/adversarial_alerts.csv](../evaluation/adversarial_alerts.csv) takes the real dropper session and swaps its opening line for eight different attempts to talk the triage agent into "benign": a classic "ignore previous instructions", a pre-filled verdict in the exact output JSON, closing the data tags and opening a fake `<system>` block, a fake CISO-approved change ticket, a base64-hidden instruction, zero-width characters splitting the trigger words, a Spanish instruction, and a note smuggled into a shell comment. The download-chmod-execute chain stays the same in every variant, so the correct answer is always malicious / high / escalate.
+
+```bash
+python -m evaluation.evaluate --dataset evaluation/adversarial_alerts.csv --mode alert
+```
+
+The per-scenario table in the report then reads as a pass/fail list per injection style.
 
 ### Caveats
 
 - **The data is synthetic.** The scenarios are modelled on real Cowrie captures, but a labelled sample of real alerts is the honest test. `detections.local_rules` and `triage.sentinel` both emit alerts in the dataset's format, so labelling a week of real data is a matter of filling in three columns.
 - **The labels encode a policy.** Severity follows the rubric in the prompt (e.g. failed brute force = low). A SOC with a different policy should change both.
-- **44 alerts is small.** Treat single-alert differences as anecdotes, not trends.
+- **62 alerts is small.** Treat single-alert differences as anecdotes, not trends.
 
 ## Verified on a live sensor
 
@@ -72,6 +82,6 @@ The Compose stack (Cowrie 3.1.1 plus the shipper) was run locally and attacked w
 
 ## What I'd build next
 
-- More sensors (Telnet, HTTP) feeding the same table, correlation and triage.
+- An HTTP sensor (web honeypot) feeding the same table, correlation and triage.
 - Payload detonation: send captured hashes to a sandbox and feed the behaviour report into the case enrichment.
 - Per-rule alert suppression learned from feedback: rules whose alerts analysts consistently close as benign get their thresholds reviewed.

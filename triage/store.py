@@ -45,6 +45,11 @@ CREATE TABLE IF NOT EXISTS spend (
     usd         REAL NOT NULL DEFAULT 0,
     calls       INTEGER NOT NULL DEFAULT 0
 );
+CREATE TABLE IF NOT EXISTS notifications (
+    case_id     TEXT PRIMARY KEY,            -- one chat message per case, ever
+    channel     TEXT NOT NULL,
+    sent_at     TEXT NOT NULL
+);
 CREATE TABLE IF NOT EXISTS feedback (
     alert_id    TEXT PRIMARY KEY REFERENCES alerts(alert_id),
     verdict     TEXT NOT NULL,               -- malicious | suspicious | benign
@@ -122,6 +127,15 @@ class Store:
                             (status, incident_id, alert_id))
 
     # --- spend --------------------------------------------------------------------------
+    # --- notifications ------------------------------------------------------------------
+    def was_notified(self, case_id: str) -> bool:
+        return self.db.execute("SELECT 1 FROM notifications WHERE case_id=?", (case_id,)).fetchone() is not None
+
+    def mark_notified(self, case_id: str, channel: str) -> None:
+        with self._lock, self.db:
+            self.db.execute("INSERT OR IGNORE INTO notifications (case_id, channel, sent_at) VALUES (?,?,?)",
+                            (case_id, channel, _now()))
+
     def add_spend(self, day: str, usd: float) -> None:
         with self._lock, self.db:
             self.db.execute("INSERT INTO spend VALUES (?,?,1) ON CONFLICT(day) DO UPDATE SET "
