@@ -1,0 +1,10 @@
+// Reverse shells and interactive shell upgrades
+Cowrie_CL
+| where eventid == "cowrie.command.input"
+| where input contains "/dev/tcp/" or input contains "nc -e" or input contains "socat exec"
+   or input contains "python -c" or input contains "python3 -c" or input contains "perl -e"
+   or input contains "php -r" or input contains "bash -i" or input contains "sh -i"
+| summarize Commands = make_list(input, 25),
+            FirstSeen = min(TimeGenerated),
+            LastSeen = max(TimeGenerated)
+    by src_ip, session

@@ -51,6 +51,7 @@ Ad-hoc queries in [`hunting/`](hunting/), not scheduled:
 - [captured_payloads.kql](hunting/captured_payloads.kql): every captured file by SHA-256, ready to pivot into VirusTotal or MalwareBazaar.
 - [ssh_client_fingerprints.kql](hunting/ssh_client_fingerprints.kql): HASSH fingerprints shared across many source IPs, which usually means one toolkit or botnet.
 - [honeypot_iocs_in_network.kql](hunting/honeypot_iocs_in_network.kql): honeypot-derived IOCs (from the `CowrieIOCs` watchlist, see `triage/iocs.py`) appearing in production firewall, EDR or NSG-flow telemetry.
+- [reverse_shells.kql](hunting/reverse_shells.kql): reverse shells and interactive shell upgrades (`/dev/tcp/`, `nc -e`, `socat`, inline `python`/`perl`/`php` one-liners).
 
 ## Known limitations
 

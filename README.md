@@ -14,6 +14,8 @@ Cowrie ─► ship_logs.py ─► DCE/DCR ─► Cowrie_CL ─► KQL analytics 
 
 Details: [architecture](docs/architecture.md) · [writeup](docs/writeup.md) · [ATT&CK mapping](detections/attack_mapping.md)
 
+Developer shortcuts are in the [Makefile](Makefile) (`make help`); report security issues via [SECURITY.md](SECURITY.md).
+
 ## Repository layout
 
 | Path | What's there |
@@ -21,7 +23,7 @@ Details: [architecture](docs/architecture.md) · [writeup](docs/writeup.md) · [
 | [honeypot/](honeypot/) | Cowrie Docker setup, hardened config, Azure VM deploy, attack simulator |
 | [ingestion/](ingestion/) | Cowrie JSON parser and the log shipper (Logs Ingestion API, checkpointed) |
 | [siem/](siem/) | Table schema, DCE/DCR template, `deploy.ps1`, workbook, playbook notes, sample data |
-| [detections/](detections/) | 9 scheduled KQL rules with Sigma equivalents, 5 hunting queries (incl. honeypot IOCs in production logs), Python mirror of the rules, ATT&CK mapping and Navigator layer |
+| [detections/](detections/) | 9 scheduled KQL rules with Sigma equivalents, 6 hunting queries (incl. honeypot IOCs in production logs), Python mirror of the rules, ATT&CK mapping and Navigator layer |
 | [triage/](triage/) | Enrichment (activity, assets, intel, captured-payload analysis), campaign correlation, the Claude triage agent, daily budget cap, SQLite store, Sentinel write-back, Teams/Slack escalation alerts, analyst feedback loop, IOC export, HTML report |
 | [evaluation/](evaluation/) | Labelled alerts built from simulator ground truth, a prompt-injection test set, and scoring against a rule-only baseline |
 | [tests/](tests/) | 87 tests: parser, schema consistency, rules, Sigma/KQL sync, shipper, enrichment, payloads, IOCs, correlation, agent, budget, store, write-back, notifications, feedback, report, metrics |
