@@ -1,0 +1,16 @@
+// name: Cron persistence
+// severity: High
+// tactics: Persistence
+// techniques: T1053.003
+// frequency: PT10M
+// period: PT10M
+// description: A session installed or edited a cron job to keep code running across reboots (crontab install/edit, /etc/cron.d, /var/spool/cron).
+Cowrie_CL
+| where eventid == "cowrie.command.input"
+| where input contains "| crontab -" or input contains "crontab -e"
+   or input contains "/etc/crontab" or input contains "/etc/cron.d"
+   or input contains "/var/spool/cron"
+| summarize Commands = make_list(input, 25),
+            FirstSeen = min(TimeGenerated),
+            LastSeen = max(TimeGenerated)
+    by src_ip, session

@@ -31,6 +31,19 @@
       "comment": "Detected by: 06_system_discovery (Low)"
     },
     {
+      "techniqueID": "T1053",
+      "enabled": true,
+      "showSubtechniques": true,
+      "comment": "Parent of a covered sub-technique"
+    },
+    {
+      "techniqueID": "T1053.003",
+      "score": 1,
+      "enabled": true,
+      "showSubtechniques": true,
+      "comment": "Detected by: 10_cron_persistence (High)"
+    },
+    {
       "techniqueID": "T1059",
       "enabled": true,
       "showSubtechniques": true,

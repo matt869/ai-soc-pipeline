@@ -1,0 +1,30 @@
+title: Cron persistence
+id: 3c7a9b1d-5e4f-5a6b-8c7d-9e0f1a2b3c4d
+status: experimental
+description: A session installed or edited a cron job to keep code running across reboots (crontab install/edit, /etc/cron.d, /var/spool/cron). Mirrors detections/kql/10_cron_persistence.kql.
+author: matt869
+date: 2026-10-21
+tags:
+    - attack.persistence
+    - attack.t1053.003
+logsource:
+    product: cowrie
+    service: ssh
+detection:
+    selection_event:
+        eventid: cowrie.command.input
+    selection_cron:
+        input|contains:
+            - '| crontab -'
+            - crontab -e
+            - /etc/crontab
+            - /etc/cron.d
+            - /var/spool/cron
+    condition: all of selection_*
+fields:
+    - src_ip
+    - session
+    - input
+falsepositives:
+    - Operators scheduling a job on the sensor
+level: high

@@ -20,6 +20,7 @@ Two portable views are generated from the same headers:
 | [07 Cryptominer deployment](kql/07_cryptominer.kql) | High | Impact | T1496 Resource Hijacking | miner binaries or pool protocols (`xmrig`, `stratum+tcp`, `--donate-level`…) | every 10 min |
 | [08 Busybox probe](kql/08_busybox_probe.kql) | Medium | Discovery, Defense Evasion | T1082, T1497.001 System Checks | `/bin/busybox` + a random UPPERCASE token (e.g. `ECCHI`), the Mirai-family check for a real shell before loading | every 10 min |
 | [09 Shell history clearing](kql/09_clear_history.kql) | Medium | Defense Evasion | T1070.003 Clear Command History | `history -c`, `unset HISTFILE`, removing `~/.bash_history` | every 10 min |
+| [10 Cron persistence](kql/10_cron_persistence.kql) | High | Persistence | T1053.003 Cron | `crontab` install/edit, writes to `/etc/cron.d` or `/var/spool/cron` | every 10 min |
 
 Sentinel's `techniques` field only takes parent IDs, so the deploy script sends `T1110`, `T1059`, and so on. Sub-techniques stay in the KQL header and in the alerts the triage agent sees.
 
@@ -33,14 +34,14 @@ Sentinel's `techniques` field only takes parent IDs, so the deploy script sends 
 | Fetching a payload | T1105 | 02, plus `cowrie.session.file_download` in [hunting/captured_payloads.kql](hunting/captured_payloads.kql) |
 | Making it executable and running it from /tmp | T1059.004, T1222.002 | 03 |
 | Planting an SSH key | T1098.004 | 05 |
-| Cron persistence | T1053.003 | not a dedicated rule; visible to the triage agent in session context |
+| Cron persistence | T1053.003 | 10 |
 | Changing the root password | T1098 | not a dedicated rule; visible to the triage agent |
 | Clearing shell history | T1070.003 | 09 |
 | Mining | T1496 | 07 |
 | IoT loader checking for a real busybox (or a honeypot) | T1082, T1497.001 | 08 |
 | Using the sensor as a proxy (direct-tcpip) | T1090 | disabled in [cowrie.cfg](../honeypot/cowrie.cfg) (`forwarding = false`) |
 
-The remaining gaps are deliberate. Cron and password changes nearly always follow a download or key plant that already alerted, so the triage agent, which reads the whole session, scores them as part of that alert instead of raising two more. History clearing got its own rule (09) because the command is unambiguous and cheap to tune.
+The remaining gap is deliberate. Password changes (`chpasswd`) nearly always follow a download or key plant that already alerted, so the triage agent, which reads the whole session, scores them as part of that alert instead of raising another. History clearing (09) and cron persistence (10) have their own rules because those commands are unambiguous and cheap to tune.
 
 ## Hunting queries
 

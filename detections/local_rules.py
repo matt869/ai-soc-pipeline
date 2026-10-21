@@ -209,6 +209,14 @@ def clear_history(events: list[Event]) -> list[Alert]:
                         [e for e in _commands(events) if any(_contains(e["input"], m) for m in HISTORY_WIPE_MARKERS)])
 
 
+CRON_PERSIST_MARKERS = ("| crontab -", "crontab -e", "/etc/crontab", "/etc/cron.d", "/var/spool/cron")
+
+
+def cron_persistence(events: list[Event]) -> list[Alert]:
+    return _per_session("10_cron_persistence",
+                        [e for e in _commands(events) if any(_contains(e["input"], m) for m in CRON_PERSIST_MARKERS)])
+
+
 RULES: dict[str, Callable[[list[Event]], list[Alert]]] = {
     "01_ssh_bruteforce": ssh_bruteforce,
     "02_download_command": download_command,
@@ -219,6 +227,7 @@ RULES: dict[str, Callable[[list[Event]], list[Alert]]] = {
     "07_cryptominer": cryptominer,
     "08_busybox_probe": busybox_probe,
     "09_clear_history": clear_history,
+    "10_cron_persistence": cron_persistence,
 }
 
 

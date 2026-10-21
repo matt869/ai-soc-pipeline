@@ -9,7 +9,7 @@ EXPECTED = {
     "bruteforce_only": {"01_ssh_bruteforce"},
     "bruteforce_success_recon": {"01_ssh_bruteforce", "04_success_after_bruteforce", "06_system_discovery"},
     "miner_dropper": {"02_download_command", "03_tmp_execution", "05_ssh_key_persistence", "07_cryptominer",
-                      "09_clear_history"},
+                      "09_clear_history", "10_cron_persistence"},
     "mirai_botnet": {"02_download_command", "03_tmp_execution", "08_busybox_probe"},
     "ssh_key_implant": {"05_ssh_key_persistence"},
     "egress_check": {"02_download_command"},
@@ -93,3 +93,16 @@ def test_clear_history_detection():
     assert clear_history(cmd("rm -f ~/.bash_history"))
     assert clear_history(cmd("unset HISTFILE && exit"))
     assert clear_history(cmd("history")) == []  # viewing history is not wiping it
+
+
+def test_cron_persistence_detection():
+    from detections.local_rules import cron_persistence
+
+    def cmd(text):
+        return [{"eventid": "cowrie.command.input", "src_ip": "203.0.113.9", "session": "s", "input": text,
+                 "TimeGenerated": "2026-09-01T10:00:00.000000Z"}]
+
+    assert cron_persistence(cmd("(crontab -l; echo '@reboot /tmp/x') | crontab -"))
+    assert cron_persistence(cmd("crontab -e"))
+    assert cron_persistence(cmd("echo '*/5 * * * * root /tmp/x' >> /etc/crontab"))
+    assert cron_persistence(cmd("crontab -l")) == []  # listing is recon, not persistence
