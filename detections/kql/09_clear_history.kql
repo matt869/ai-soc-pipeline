@@ -1,0 +1,16 @@
+// name: Shell history clearing
+// severity: Medium
+// tactics: DefenseEvasion
+// techniques: T1070.003
+// frequency: PT10M
+// period: PT10M
+// description: A session cleared its shell command history (history -c, unset HISTFILE, removing ~/.bash_history) to hide what it ran.
+Cowrie_CL
+| where eventid == "cowrie.command.input"
+| where input contains "history -c" or input contains "unset HISTFILE"
+   or input contains "rm -f ~/.bash_history" or input contains "rm -rf ~/.bash_history"
+   or input contains "rm -f .bash_history" or input contains "rm -rf .bash_history"
+| summarize Commands = make_list(input, 25),
+            FirstSeen = min(TimeGenerated),
+            LastSeen = max(TimeGenerated)
+    by src_ip, session

@@ -44,6 +44,19 @@
       "comment": "Detected by: 03_tmp_execution (High)"
     },
     {
+      "techniqueID": "T1070",
+      "enabled": true,
+      "showSubtechniques": true,
+      "comment": "Parent of a covered sub-technique"
+    },
+    {
+      "techniqueID": "T1070.003",
+      "score": 1,
+      "enabled": true,
+      "showSubtechniques": true,
+      "comment": "Detected by: 09_clear_history (Medium)"
+    },
+    {
       "techniqueID": "T1078",
       "score": 1,
       "enabled": true,

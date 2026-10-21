@@ -200,6 +200,15 @@ def busybox_probe(events: list[Event]) -> list[Alert]:
     return alerts
 
 
+HISTORY_WIPE_MARKERS = ("history -c", "unset HISTFILE", "rm -f ~/.bash_history", "rm -rf ~/.bash_history",
+                        "rm -f .bash_history", "rm -rf .bash_history")
+
+
+def clear_history(events: list[Event]) -> list[Alert]:
+    return _per_session("09_clear_history",
+                        [e for e in _commands(events) if any(_contains(e["input"], m) for m in HISTORY_WIPE_MARKERS)])
+
+
 RULES: dict[str, Callable[[list[Event]], list[Alert]]] = {
     "01_ssh_bruteforce": ssh_bruteforce,
     "02_download_command": download_command,
@@ -209,6 +218,7 @@ RULES: dict[str, Callable[[list[Event]], list[Alert]]] = {
     "06_system_discovery": system_discovery,
     "07_cryptominer": cryptominer,
     "08_busybox_probe": busybox_probe,
+    "09_clear_history": clear_history,
 }
 
 

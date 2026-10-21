@@ -1,0 +1,31 @@
+title: Shell history clearing
+id: 9b7f1c2d-3e4a-5b6c-8d9e-0f1a2b3c4d5e
+status: experimental
+description: A session cleared its shell command history (history -c, unset HISTFILE, removing ~/.bash_history) to hide what it ran. Mirrors detections/kql/09_clear_history.kql.
+author: matt869
+date: 2026-10-21
+tags:
+    - attack.defense-evasion
+    - attack.t1070.003
+logsource:
+    product: cowrie
+    service: ssh
+detection:
+    selection_event:
+        eventid: cowrie.command.input
+    selection_wipe:
+        input|contains:
+            - history -c
+            - unset HISTFILE
+            - rm -f ~/.bash_history
+            - rm -rf ~/.bash_history
+            - rm -f .bash_history
+            - rm -rf .bash_history
+    condition: all of selection_*
+fields:
+    - src_ip
+    - session
+    - input
+falsepositives:
+    - Operators tidying a session after validation
+level: medium
