@@ -10,7 +10,7 @@ This project wires a Cowrie honeypot into Microsoft Sentinel, writes ATT&CK-mapp
 
 1. **Sensor.** Cowrie in Docker on a small Azure VM, in a VNet of its own. It accepts a short list of weak passwords, enough that bots get a shell and reveal their payloads.
 2. **Shipping.** A Python shipper tails `cowrie.json`, normalizes each event to a 19-column schema, and posts batches to the Azure Monitor Logs Ingestion API using the VM's managed identity. It checkpoints the byte offset after each successful upload and handles log rotation.
-3. **Detection.** Eleven scheduled KQL rules cover brute force, success after brute force, payload download, execution from /tmp, SSH-key persistence, host reconnaissance, cryptominer deployment, busybox probing, shell-history clearing, cron persistence and account password change, each mapped to ATT&CK ([mapping](../detections/attack_mapping.md)). One PowerShell script deploys the workspace, table, DCR, rules and a workbook.
+3. **Detection.** Twelve scheduled KQL rules cover brute force, success after brute force, payload download, execution from /tmp, SSH-key persistence, host reconnaissance, cryptominer deployment, busybox probing, shell-history clearing, cron persistence, account password change and credential file access, each mapped to ATT&CK ([mapping](../detections/attack_mapping.md)). One PowerShell script deploys the workspace, table, DCR, rules and a workbook.
 4. **Enrichment.** For each alert: everything that source IP did in the surrounding day (credentials that worked, commands, downloads, SSH client fingerprint), whether the IP is internal, what the asset inventory says it should be doing, and AbuseIPDB/GreyNoise reputation.
 5. **Correlation.** Alerts are grouped into cases by source IP and by shared attacker infrastructure: C2 or payload server, payload hash, mining wallet or pool, planted SSH key.
 6. **Triage.** One Claude Opus 5.5 call per case, constrained to a JSON schema: verdict, severity, confidence, ATT&CK techniques, summary, key evidence, recommended actions, escalate yes/no.
@@ -25,23 +25,23 @@ This project wires a Cowrie honeypot into Microsoft Sentinel, writes ATT&CK-mapp
 
 **Context over allowlists.** The internal Nessus scanner brute-forces the sensor every week. An allowlist would silence it, and would also silence an attacker who compromised it. Instead, the asset inventory describes what each host is expected to do and the model checks the activity against that. The evaluation includes the opposite case too: an internal host with no inventory entry that brute-forces the sensor and stages an agent. That should come out critical.
 
-**Campaigns are the unit of work.** Three Mirai bots downloading from the same C2 are one problem, not six alerts. Linking on infrastructure the attackers actually used gives the model the campaign view, and cuts the simulated dataset from 69 requests to 19. `python -m evaluation.evaluate --mode alert` measures whether that costs any accuracy.
+**Campaigns are the unit of work.** Three Mirai bots downloading from the same C2 are one problem, not six alerts. Linking on infrastructure the attackers actually used gives the model the campaign view, and cuts the simulated dataset from 70 requests to 19. `python -m evaluation.evaluate --mode alert` measures whether that costs any accuracy.
 
 **One source of truth for rules.** Rule metadata lives in KQL header comments. The deploy script turns them into Sentinel analytics rules, and a Python mirror of each rule lets the whole pipeline run, and be tested, without Azure.
 
 ## Evaluation
 
-There is no public labelled dataset for "honeypot alerts, triaged". So the simulator generates one: 11 actor scenarios plus background noise, every source IP tagged with ground truth (verdict, overall severity, whether to escalate). Running the real detection rules over it produces 69 alerts. 64 come from hostile actors, 5 from authorized internal activity, and 58 merit escalation (malicious at medium severity or above).
+There is no public labelled dataset for "honeypot alerts, triaged". So the simulator generates one: 11 actor scenarios plus background noise, every source IP tagged with ground truth (verdict, overall severity, whether to escalate). Running the real detection rules over it produces 70 alerts. 65 come from hostile actors, 5 from authorized internal activity, and 59 merit escalation (malicious at medium severity or above).
 
 The baseline is the SOC without triage: every alert is malicious, every alert is escalated, and severity is the rule's static value.
 
 | Metric | Rule-only baseline |
 |---|---|
-| Hostile alerts caught | 64/64 |
+| Hostile alerts caught | 65/65 |
 | Benign alerts closed | 0/5 |
-| Alerts escalated to a human | 69/69 (queue reduction 0%) |
+| Alerts escalated to a human | 70/70 (queue reduction 0%) |
 | Escalation precision | 84% |
-| Severity exact / within one level | 35% / 88% |
+| Severity exact / within one level | 34% / 89% |
 
 To score the LLM against the same labels:
 
@@ -67,7 +67,7 @@ The per-scenario table in the report then reads as a pass/fail list per injectio
 
 - **The data is synthetic.** The scenarios are modelled on real Cowrie captures, but a labelled sample of real alerts is the honest test. `detections.local_rules` and `triage.sentinel` both emit alerts in the dataset's format, so labelling a week of real data is a matter of filling in three columns.
 - **The labels encode a policy.** Severity follows the rubric in the prompt (e.g. failed brute force = low). A SOC with a different policy should change both.
-- **69 alerts is small.** Treat single-alert differences as anecdotes, not trends.
+- **70 alerts is small.** Treat single-alert differences as anecdotes, not trends.
 
 ## Verified on a live sensor
 

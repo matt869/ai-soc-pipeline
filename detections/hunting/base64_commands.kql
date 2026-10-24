@@ -1,0 +1,7 @@
+// Base64 / hex obfuscation of commands or payloads (T1027)
+Cowrie_CL
+| where eventid == "cowrie.command.input"
+| where input contains "base64 -d" or input contains "| base64" or input contains "base64("
+   or input contains "openssl enc" or input contains "xxd -r" or input contains "hex -d"
+| project TimeGenerated, src_ip, session, input
+| sort by TimeGenerated desc

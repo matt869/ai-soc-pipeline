@@ -23,10 +23,10 @@ Developer shortcuts are in the [Makefile](Makefile) (`make help`); report securi
 | [honeypot/](honeypot/) | Cowrie Docker setup, hardened config, Azure VM deploy, attack simulator |
 | [ingestion/](ingestion/) | Cowrie JSON parser and the log shipper (Logs Ingestion API, checkpointed) |
 | [siem/](siem/) | Table schema, DCE/DCR template, `deploy.ps1`, workbook, playbook notes, sample data |
-| [detections/](detections/) | 11 scheduled KQL rules with Sigma equivalents, 6 hunting queries (incl. honeypot IOCs in production logs), Python mirror of the rules, ATT&CK mapping and Navigator layer |
+| [detections/](detections/) | 12 scheduled KQL rules with Sigma equivalents, 7 hunting queries (incl. honeypot IOCs in production logs), Python mirror of the rules, ATT&CK mapping and Navigator layer |
 | [triage/](triage/) | Enrichment (activity, assets, intel, captured-payload analysis), campaign correlation, the Claude triage agent, daily budget cap, SQLite store, Sentinel write-back, Teams/Slack escalation alerts, analyst feedback loop, IOC export, HTML report |
 | [evaluation/](evaluation/) | Labelled alerts built from simulator ground truth, a prompt-injection test set, and scoring against a rule-only baseline |
-| [tests/](tests/) | 91 tests: parser, schema consistency, rules, Sigma/KQL sync, shipper, enrichment, payloads, IOCs, correlation, agent, budget, store, write-back, notifications, feedback, report, metrics |
+| [tests/](tests/) | 93 tests: parser, schema consistency, rules, Sigma/KQL sync, shipper, enrichment, payloads, IOCs, correlation, agent, budget, store, write-back, notifications, feedback, report, metrics |
 | [.github/workflows/ci.yml](.github/workflows/ci.yml) | Ruff, tests, Navigator-layer freshness, an offline pipeline run, PowerShell parsing and template validation on every push |
 
 ## Quick start (offline, no Azure needed)
@@ -40,7 +40,7 @@ python -m pytest -q                                          # tests
 python -m honeypot.simulate_attacks                          # synthetic Cowrie log + ground truth
 python -m detections.local_rules data/raw/cowrie_simulated.json -o data/processed/alerts.jsonl
 python -m triage.triage_agent --events data/raw/cowrie_simulated.json --limit 1 --dry-run   # inspect a request
-python -m triage.triage_agent --events data/raw/cowrie_simulated.json                       # 69 alerts in 19 cases
+python -m triage.triage_agent --events data/raw/cowrie_simulated.json                       # 70 alerts in 19 cases
 python -m triage.report                                      # analyst queue -> data/processed/triage_report.html
 python -m triage.iocs --events data/raw/cowrie_simulated.json   # IOCs -> CSV + STIX 2.1
 python -m evaluation.evaluate                                # LLM vs baseline -> evaluation/results/report.md

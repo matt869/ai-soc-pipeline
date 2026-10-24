@@ -22,6 +22,7 @@ Two portable views are generated from the same headers:
 | [09 Shell history clearing](kql/09_clear_history.kql) | Medium | Defense Evasion | T1070.003 Clear Command History | `history -c`, `unset HISTFILE`, removing `~/.bash_history` | every 10 min |
 | [10 Cron persistence](kql/10_cron_persistence.kql) | High | Persistence | T1053.003 Cron | `crontab` install/edit, writes to `/etc/cron.d` or `/var/spool/cron` | every 10 min |
 | [11 Account password change](kql/11_password_change.kql) | High | Persistence | T1098 Account Manipulation | `chpasswd`, `usermod -p` | every 10 min |
+| [12 Credential file access](kql/12_credential_file_access.kql) | High | Credential Access | T1003.008 /etc/passwd and /etc/shadow | reading `/etc/shadow` or `/etc/gshadow` | every 10 min |
 
 Sentinel's `techniques` field only takes parent IDs, so the deploy script sends `T1110`, `T1059`, and so on. Sub-techniques stay in the KQL header and in the alerts the triage agent sees.
 
@@ -31,6 +32,7 @@ Sentinel's `techniques` field only takes parent IDs, so the deploy script sends 
 |---|---|---|
 | Password spraying / brute force | T1110.001, T1110.003 | 01, 04 |
 | Logging in with default credentials | T1078.001 | 04 (after failures); a first-try default login is only caught by what follows it (02/03/05/06) |
+| Reading hashed credential files (`/etc/shadow`) | T1003.008 | 12 |
 | Fingerprinting the host before deciding what to drop | T1082, T1033, T1057 | 06 |
 | Fetching a payload | T1105 | 02, plus `cowrie.session.file_download` in [hunting/captured_payloads.kql](hunting/captured_payloads.kql) |
 | Making it executable and running it from /tmp | T1059.004, T1222.002 | 03 |
@@ -54,9 +56,10 @@ Ad-hoc queries in [`hunting/`](hunting/), not scheduled:
 - [ssh_client_fingerprints.kql](hunting/ssh_client_fingerprints.kql): HASSH fingerprints shared across many source IPs, which usually means one toolkit or botnet.
 - [honeypot_iocs_in_network.kql](hunting/honeypot_iocs_in_network.kql): honeypot-derived IOCs (from the `CowrieIOCs` watchlist, see `triage/iocs.py`) appearing in production firewall, EDR or NSG-flow telemetry.
 - [reverse_shells.kql](hunting/reverse_shells.kql): reverse shells and interactive shell upgrades (`/dev/tcp/`, `nc -e`, `socat`, inline `python`/`perl`/`php` one-liners).
+- [base64_commands.kql](hunting/base64_commands.kql): base64/hex-obfuscated command lines (`base64 -d`, `openssl enc`, `xxd -r`).
 
 ## Known limitations
 
 - Rule 01 bins by 10 minutes and runs every 10 minutes, so a burst that straddles a run boundary can split into two halves under the threshold. Rule 04 still catches the actor if they get in.
 - Rule 04 looks back one hour. Slow, low-volume guessing spread over hours does not trip it.
-- Keyword rules (02, 03, 07) match obfuscated commands only if the keyword survives, e.g. not `w''get` or base64-piped scripts. The triage agent sees the raw command text and is told to judge intent, not keywords.
+- Keyword rules (02, 03, 05, 07, 09–12) match obfuscated commands only if the keyword survives, e.g. not `w''get` or base64-piped scripts. The triage agent sees the raw command text and is told to judge intent, not keywords.

@@ -16,7 +16,8 @@ EXPECTED = {
     "prompt_injection_dropper": {"02_download_command", "03_tmp_execution", "09_clear_history"},
     "operator_validation": {"02_download_command", "03_tmp_execution"},
     "internal_vuln_scan": {"01_ssh_bruteforce"},
-    "internal_lateral": {"01_ssh_bruteforce", "02_download_command", "03_tmp_execution", "04_success_after_bruteforce"},
+    "internal_lateral": {"01_ssh_bruteforce", "02_download_command", "03_tmp_execution", "04_success_after_bruteforce",
+                         "12_credential_file_access"},
     "scanner_noise": set(),
     "mirai_telnet": {"01_ssh_bruteforce", "04_success_after_bruteforce", "02_download_command", "03_tmp_execution",
                      "08_busybox_probe"},
@@ -118,3 +119,15 @@ def test_password_change_detection():
     assert password_change(cmd("echo 'root:newpass' | chpasswd"))
     assert password_change(cmd("usermod -p 'hash' root"))
     assert password_change(cmd("cat /etc/passwd")) == []  # reading the passwd file is not a change
+
+
+def test_credential_file_access_detection():
+    from detections.local_rules import credential_file_access
+
+    def cmd(text):
+        return [{"eventid": "cowrie.command.input", "src_ip": "203.0.113.9", "session": "s", "input": text,
+                 "TimeGenerated": "2026-09-01T10:00:00.000000Z"}]
+
+    assert credential_file_access(cmd("cat /etc/shadow"))
+    assert credential_file_access(cmd("grep root /etc/gshadow"))
+    assert credential_file_access(cmd("cat /etc/passwd")) == []  # world-readable file, not the hashed one

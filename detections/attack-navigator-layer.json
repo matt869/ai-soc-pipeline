@@ -24,6 +24,19 @@
   "hideDisabled": false,
   "techniques": [
     {
+      "techniqueID": "T1003",
+      "enabled": true,
+      "showSubtechniques": true,
+      "comment": "Parent of a covered sub-technique"
+    },
+    {
+      "techniqueID": "T1003.008",
+      "score": 1,
+      "enabled": true,
+      "showSubtechniques": true,
+      "comment": "Detected by: 12_credential_file_access (High)"
+    },
+    {
       "techniqueID": "T1033",
       "score": 1,
       "enabled": true,

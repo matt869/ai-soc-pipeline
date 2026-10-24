@@ -225,6 +225,14 @@ def password_change(events: list[Event]) -> list[Alert]:
                         [e for e in _commands(events) if any(_contains(e["input"], m) for m in PASSWORD_CHANGE_MARKERS)])
 
 
+CRED_FILE_MARKERS = ("/etc/shadow", "/etc/gshadow")
+
+
+def credential_file_access(events: list[Event]) -> list[Alert]:
+    return _per_session("12_credential_file_access",
+                        [e for e in _commands(events) if any(_contains(e["input"], m) for m in CRED_FILE_MARKERS)])
+
+
 RULES: dict[str, Callable[[list[Event]], list[Alert]]] = {
     "01_ssh_bruteforce": ssh_bruteforce,
     "02_download_command": download_command,
@@ -237,6 +245,7 @@ RULES: dict[str, Callable[[list[Event]], list[Alert]]] = {
     "09_clear_history": clear_history,
     "10_cron_persistence": cron_persistence,
     "11_password_change": password_change,
+    "12_credential_file_access": credential_file_access,
 }
 
 
