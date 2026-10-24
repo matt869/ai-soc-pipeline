@@ -217,6 +217,14 @@ def cron_persistence(events: list[Event]) -> list[Alert]:
                         [e for e in _commands(events) if any(_contains(e["input"], m) for m in CRON_PERSIST_MARKERS)])
 
 
+PASSWORD_CHANGE_MARKERS = ("chpasswd", "usermod -p")
+
+
+def password_change(events: list[Event]) -> list[Alert]:
+    return _per_session("11_password_change",
+                        [e for e in _commands(events) if any(_contains(e["input"], m) for m in PASSWORD_CHANGE_MARKERS)])
+
+
 RULES: dict[str, Callable[[list[Event]], list[Alert]]] = {
     "01_ssh_bruteforce": ssh_bruteforce,
     "02_download_command": download_command,
@@ -228,6 +236,7 @@ RULES: dict[str, Callable[[list[Event]], list[Alert]]] = {
     "08_busybox_probe": busybox_probe,
     "09_clear_history": clear_history,
     "10_cron_persistence": cron_persistence,
+    "11_password_change": password_change,
 }
 
 

@@ -85,9 +85,10 @@
     },
     {
       "techniqueID": "T1098",
+      "score": 1,
       "enabled": true,
-      "showSubtechniques": true,
-      "comment": "Parent of a covered sub-technique"
+      "showSubtechniques": false,
+      "comment": "Detected by: 11_password_change (High)"
     },
     {
       "techniqueID": "T1098.004",

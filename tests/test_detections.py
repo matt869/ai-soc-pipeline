@@ -11,7 +11,7 @@ EXPECTED = {
     "miner_dropper": {"02_download_command", "03_tmp_execution", "05_ssh_key_persistence", "07_cryptominer",
                       "09_clear_history", "10_cron_persistence"},
     "mirai_botnet": {"02_download_command", "03_tmp_execution", "08_busybox_probe"},
-    "ssh_key_implant": {"05_ssh_key_persistence"},
+    "ssh_key_implant": {"05_ssh_key_persistence", "11_password_change"},
     "egress_check": {"02_download_command"},
     "prompt_injection_dropper": {"02_download_command", "03_tmp_execution", "09_clear_history"},
     "operator_validation": {"02_download_command", "03_tmp_execution"},
@@ -106,3 +106,15 @@ def test_cron_persistence_detection():
     assert cron_persistence(cmd("crontab -e"))
     assert cron_persistence(cmd("echo '*/5 * * * * root /tmp/x' >> /etc/crontab"))
     assert cron_persistence(cmd("crontab -l")) == []  # listing is recon, not persistence
+
+
+def test_password_change_detection():
+    from detections.local_rules import password_change
+
+    def cmd(text):
+        return [{"eventid": "cowrie.command.input", "src_ip": "203.0.113.9", "session": "s", "input": text,
+                 "TimeGenerated": "2026-09-01T10:00:00.000000Z"}]
+
+    assert password_change(cmd("echo 'root:newpass' | chpasswd"))
+    assert password_change(cmd("usermod -p 'hash' root"))
+    assert password_change(cmd("cat /etc/passwd")) == []  # reading the passwd file is not a change

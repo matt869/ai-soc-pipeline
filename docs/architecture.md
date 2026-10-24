@@ -37,11 +37,11 @@ flowchart LR
 | Normalize | [ingestion/parsers/cowrie_parser.py](../ingestion/parsers/cowrie_parser.py) | Raw Cowrie JSON → the 19 `Cowrie_CL` columns. Coerces types, caps attacker-controlled fields at 8 KB. |
 | Ship | [ingestion/ship_logs.py](../ingestion/ship_logs.py) | Tails the log, handles rotation and truncation, uploads in batches of 500 with retry/backoff. Saves the byte offset only after a successful upload (at-least-once delivery). |
 | Store | [siem/infra/](../siem/infra/) | Custom table plus DCE/DCR via ARM. The schema is declared in three places, all checked by a test. |
-| Detect | [detections/kql/](../detections/kql/) | Ten scheduled rules. Metadata lives in KQL header comments that both PowerShell and Python read. |
+| Detect | [detections/kql/](../detections/kql/) | Eleven scheduled rules. Metadata lives in KQL header comments that both PowerShell and Python read. |
 | Detect (offline) | [detections/local_rules.py](../detections/local_rules.py) | Python mirror of every rule, so the whole pipeline runs and is tested without Azure. |
 | Enrich | [triage/enrich.py](../triage/enrich.py) | The source's activity over the alert window ±24h, network class, asset-inventory match, cached threat intel. |
 | Payloads | [triage/payloads.py](../triage/payloads.py) | Static analysis of files Cowrie captured: ELF arch, packing, family hints, embedded IOCs, optional hash reputation. Read-only; never executed. |
-| Correlate | [triage/correlate.py](../triage/correlate.py) | Union-find over alerts: same source IP, or sources sharing a C2/payload server, payload hash, wallet, mining pool or planted SSH key. 67 simulated alerts → 19 cases. |
+| Correlate | [triage/correlate.py](../triage/correlate.py) | Union-find over alerts: same source IP, or sources sharing a C2/payload server, payload hash, wallet, mining pool or planted SSH key. 69 simulated alerts → 19 cases. |
 | Triage | [triage/triage_agent.py](../triage/triage_agent.py) | One Claude call per case (or per alert with `--mode alert`). JSON-schema output validated with Pydantic. |
 | Remember | [triage/store.py](../triage/store.py) | SQLite: every alert, verdict, write-back status, incident id, daily spend and analyst label. In `--watch` mode an alert is triaged once. Failures retry. |
 | Budget | [triage/budget.py](../triage/budget.py) | Daily USD cap on estimated API spend, persisted across restarts. |
