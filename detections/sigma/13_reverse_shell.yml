@@ -1,0 +1,34 @@
+title: Reverse shell
+id: 9a5b1c3d-7e8f-5a1b-9c2d-3e4f5a6b7c8d
+status: experimental
+description: A session spawned an interactive reverse shell or shell upgrade (/dev/tcp/, nc -e, bash -i...) to the attacker's endpoint. Mirrors detections/kql/13_reverse_shell.kql.
+author: matt869
+date: 2026-10-21
+tags:
+    - attack.execution
+    - attack.command-and-control
+    - attack.t1059.004
+    - attack.t1571
+logsource:
+    product: cowrie
+    service: ssh
+detection:
+    selection_event:
+        eventid: cowrie.command.input
+    selection_shell:
+        input|contains:
+            - /dev/tcp/
+            - nc -e
+            - ncat -e
+            - socat exec
+            - mkfifo
+            - bash -i
+            - sh -i
+    condition: all of selection_*
+fields:
+    - src_ip
+    - session
+    - input
+falsepositives:
+    - Unlikely on a honeypot
+level: high

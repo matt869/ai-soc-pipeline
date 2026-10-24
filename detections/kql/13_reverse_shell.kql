@@ -1,0 +1,15 @@
+// name: Reverse shell
+// severity: High
+// tactics: Execution, CommandAndControl
+// techniques: T1059.004, T1571
+// frequency: PT10M
+// period: PT10M
+// description: A session spawned an interactive reverse shell or shell upgrade (/dev/tcp/, nc -e, bash -i...) to the attacker's endpoint.
+Cowrie_CL
+| where eventid == "cowrie.command.input"
+| where input contains "/dev/tcp/" or input contains "nc -e" or input contains "ncat -e"
+   or input contains "socat exec" or input contains "mkfifo" or input contains "bash -i" or input contains "sh -i"
+| summarize Commands = make_list(input, 25),
+            FirstSeen = min(TimeGenerated),
+            LastSeen = max(TimeGenerated)
+    by src_ip, session

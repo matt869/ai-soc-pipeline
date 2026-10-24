@@ -23,6 +23,7 @@ Two portable views are generated from the same headers:
 | [10 Cron persistence](kql/10_cron_persistence.kql) | High | Persistence | T1053.003 Cron | `crontab` install/edit, writes to `/etc/cron.d` or `/var/spool/cron` | every 10 min |
 | [11 Account password change](kql/11_password_change.kql) | High | Persistence | T1098 Account Manipulation | `chpasswd`, `usermod -p` | every 10 min |
 | [12 Credential file access](kql/12_credential_file_access.kql) | High | Credential Access | T1003.008 /etc/passwd and /etc/shadow | reading `/etc/shadow` or `/etc/gshadow` | every 10 min |
+| [13 Reverse shell](kql/13_reverse_shell.kql) | High | Execution, Command and Control | T1059.004 Unix Shell, T1571 Non-Standard Port | `/dev/tcp/`, `nc -e`, `bash -i`… | every 10 min |
 
 Sentinel's `techniques` field only takes parent IDs, so the deploy script sends `T1110`, `T1059`, and so on. Sub-techniques stay in the KQL header and in the alerts the triage agent sees.
 
@@ -33,6 +34,7 @@ Sentinel's `techniques` field only takes parent IDs, so the deploy script sends 
 | Password spraying / brute force | T1110.001, T1110.003 | 01, 04 |
 | Logging in with default credentials | T1078.001 | 04 (after failures); a first-try default login is only caught by what follows it (02/03/05/06) |
 | Reading hashed credential files (`/etc/shadow`) | T1003.008 | 12 |
+| Spawning a reverse shell / interactive upgrade | T1059.004, T1571 | 13 |
 | Fingerprinting the host before deciding what to drop | T1082, T1033, T1057 | 06 |
 | Fetching a payload | T1105 | 02, plus `cowrie.session.file_download` in [hunting/captured_payloads.kql](hunting/captured_payloads.kql) |
 | Making it executable and running it from /tmp | T1059.004, T1222.002 | 03 |

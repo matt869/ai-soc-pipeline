@@ -64,10 +64,10 @@
     },
     {
       "techniqueID": "T1059.004",
-      "score": 1,
+      "score": 2,
       "enabled": true,
       "showSubtechniques": true,
-      "comment": "Detected by: 03_tmp_execution (High)"
+      "comment": "Detected by: 03_tmp_execution (High), 13_reverse_shell (High)"
     },
     {
       "techniqueID": "T1070",
@@ -162,6 +162,13 @@
       "enabled": true,
       "showSubtechniques": true,
       "comment": "Detected by: 08_busybox_probe (Medium)"
+    },
+    {
+      "techniqueID": "T1571",
+      "score": 1,
+      "enabled": true,
+      "showSubtechniques": false,
+      "comment": "Detected by: 13_reverse_shell (High)"
     }
   ],
   "gradient": {

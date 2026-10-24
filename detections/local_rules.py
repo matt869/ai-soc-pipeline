@@ -233,6 +233,14 @@ def credential_file_access(events: list[Event]) -> list[Alert]:
                         [e for e in _commands(events) if any(_contains(e["input"], m) for m in CRED_FILE_MARKERS)])
 
 
+REVERSE_SHELL_MARKERS = ("/dev/tcp/", "nc -e", "ncat -e", "socat exec", "mkfifo", "bash -i", "sh -i")
+
+
+def reverse_shell(events: list[Event]) -> list[Alert]:
+    return _per_session("13_reverse_shell",
+                        [e for e in _commands(events) if any(_contains(e["input"], m) for m in REVERSE_SHELL_MARKERS)])
+
+
 RULES: dict[str, Callable[[list[Event]], list[Alert]]] = {
     "01_ssh_bruteforce": ssh_bruteforce,
     "02_download_command": download_command,
@@ -246,6 +254,7 @@ RULES: dict[str, Callable[[list[Event]], list[Alert]]] = {
     "10_cron_persistence": cron_persistence,
     "11_password_change": password_change,
     "12_credential_file_access": credential_file_access,
+    "13_reverse_shell": reverse_shell,
 }
 
 

